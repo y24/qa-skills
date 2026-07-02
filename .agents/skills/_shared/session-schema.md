@@ -11,6 +11,12 @@
     "feature": "請求書エクスポート機能",
     "description": "対象機能・変更の1〜2行説明"
   },
+  "knowledge_sources": {
+    "wiki_path": "D:/knowledge/wiki",
+    "wiki_available": true,
+    "search_tool": "Select-String",
+    "note": "knowledge-source.md の設定を解決した結果。未設定なら wiki_available: false"
+  },
   "inputs": [
     { "type": "spec",    "path": "docs/spec.md",        "note": "仕様書 v2" },
     { "type": "defects", "path": "data/defects.csv",    "note": "過去不具合一覧" },

@@ -29,11 +29,12 @@
     { "order": 3, "skill": "qa-spec-review",         "mode": 1, "status": "pending", "output": null },
     { "order": 4, "skill": "qa-test-planning",       "status": "skipped",     "output": null },
     { "order": 5, "skill": "qa-feature-investigation","status": "pending",    "output": null },
-    { "order": 6, "skill": "qa-test-viewpoint",      "status": "pending",     "output": null },
-    { "order": 7, "skill": "qa-spec-review",         "mode": 2, "status": "pending", "output": null },
-    { "order": 8, "skill": "qa-test-case-design",    "status": "pending",     "output": null },
-    { "order": 9, "skill": "qa-test-data-design",    "status": "pending",     "output": null },
-    { "order": 10, "skill": "qa-test-design-review", "status": "pending",     "output": null }
+    { "order": 6, "skill": "qa-code-review",         "status": "pending",     "output": null },
+    { "order": 7, "skill": "qa-test-viewpoint",      "status": "pending",     "output": null },
+    { "order": 8, "skill": "qa-spec-review",         "mode": 2, "status": "pending", "output": null },
+    { "order": 9, "skill": "qa-test-case-design",    "status": "pending",     "output": null },
+    { "order": 10, "skill": "qa-test-data-design",   "status": "pending",     "output": null },
+    { "order": 11, "skill": "qa-test-design-review", "status": "pending",     "output": null }
   ],
   "current_order": 2,
   "decisions": [

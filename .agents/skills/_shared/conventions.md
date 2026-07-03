@@ -69,11 +69,12 @@ qa-output/<セッション名>/
   03-spec-review-mode1.md
   04-test-planning.md
   05-feature-investigation.md
-  06-test-viewpoint.md
-  07-spec-review-mode2.md
-  08-test-case.md
-  09-test-data.md
-  10-test-design-review.md
+  06-code-review.md
+  07-test-viewpoint.md
+  08-spec-review-mode2.md
+  09-test-case.md
+  10-test-data.md
+  11-test-design-review.md
   99-improvement.md
 ```
 

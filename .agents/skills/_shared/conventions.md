@@ -66,15 +66,16 @@ qa-output/<セッション名>/
   qa-session.json
   01-defect-analysis.md
   02-test-analysis.md
-  03-spec-review-mode1.md
-  04-test-planning.md
-  05-feature-investigation.md
-  06-code-review.md
-  07-test-viewpoint.md
-  08-spec-review-mode2.md
-  09-test-case.md
-  10-test-data.md
-  11-test-design-review.md
+  03-criteria-analysis.md
+  04-spec-review-mode1.md
+  05-test-planning.md
+  06-feature-investigation.md
+  07-code-review.md
+  08-test-viewpoint.md
+  09-spec-review-mode2.md
+  10-test-case.md
+  11-test-data.md
+  12-test-design-review.md
   99-improvement.md
 ```
 

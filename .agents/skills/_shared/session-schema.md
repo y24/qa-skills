@@ -12,10 +12,12 @@
     "description": "対象機能・変更の1〜2行説明"
   },
   "inputs": [
-    { "type": "spec",    "path": "docs/spec.md",        "note": "仕様書 v2" },
-    { "type": "defects", "path": "data/defects.csv",    "note": "過去不具合一覧" },
-    { "type": "pr",      "path": "https://.../pull/123", "note": "対象PR" },
-    { "type": "code",    "path": "src/export/",          "note": "対象コード" }
+    { "type": "spec",     "path": "docs/spec.md",             "note": "仕様書 v2" },
+    { "type": "plan",     "path": "docs/project-plan.md",     "note": "プロジェクト計画書" },
+    { "type": "defects",  "path": "data/defects.csv",         "note": "過去不具合一覧" },
+    { "type": "pr",       "path": "https://.../pull/123",     "note": "対象PR" },
+    { "type": "code",     "path": "src/export/",              "note": "対象コード" },
+    { "type": "criteria", "path": "docs/quality-criteria.md", "note": "既存の品質基準" }
   ],
   "plan": [
     { "order": 1, "skill": "qa-defect-analysis",     "status": "approved",    "output": "01-defect-analysis.md" },

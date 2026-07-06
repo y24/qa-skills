@@ -4,9 +4,7 @@
 **最初は空でよい**。qa-feature-investigation や qa-spec-review で未知の用語に
 出会うたびに追記して育てる。
 
-外部ナレッジベース(OKF × LLM Wiki 形式)があるプロジェクトでは、ここに収まらない
-機能仕様・業務ルール・決定経緯を [_shared/knowledge-base.md](../knowledge-base.md) の
-プロトコルで補強できる(**任意**。未設定のプロジェクトは本ファイルだけでよい)。
+外部ナレッジベース連携(任意)については [_shared/knowledge-base.md](../knowledge-base.md) を参照。
 
 ## 書式
 

@@ -2,8 +2,8 @@
 
 qa-code-review が特性別走査に使う。[quality-characteristics.md](quality-characteristics.md)
 の各特性を「コード上では何を見れば検出できるか」に翻訳したもの。
-**このファイルは育てる資産**。実際のレビューで効いた指摘パターンを
-qa-improvement 経由で追記していくこと。
+**このファイルは育てる資産**。実際のレビューで効いた指摘パターンは
+qa-improvement が振り返りレポートに追記候補として残す。
 
 ## ISO/IEC 25010 主特性
 

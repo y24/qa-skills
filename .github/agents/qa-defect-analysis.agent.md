@@ -1,6 +1,6 @@
 ---
 name: qa-defect-analysis
-description: 過去の不具合一覧(CSV・チケット・Markdown)を分類・クラスタリングし、根本原因とテストギャップを分析して、再発防止のための回帰テスト観点を導出する。「不具合の傾向を分析して」「過去バグから回帰観点を作って」と言われたとき、またはqa-orchestratorのフェーズ1として使う。
+description: 過去の不具合一覧を分類・クラスタリングし、根本原因とテストギャップを分析して回帰テスト観点を導出する。
 tools: ["read", "search", "edit", "execute", "todo", "vscode/askQuestions"]
 ---
 

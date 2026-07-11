@@ -1,6 +1,6 @@
 ---
 name: qa-test-design-review
-description: テスト観点一覧・テストケースを独立レビュアーの立場でレビューし、抜け漏れ・過剰・仕様理解の誤り・過去不具合観点の反映漏れを指摘してS〜D評価を付ける。「テスト設計をレビューして」と言われたとき、またはqa-orchestratorの最終フェーズとして使う。人間が作ったテスト設計のレビューにも使える。
+description: テスト観点一覧・テストケースを独立レビュアーの立場で検証し、抜け漏れ・過剰・仕様理解の誤りを指摘してS〜D評価を付ける。人間が作った設計にも使える。
 tools: ["read", "search", "edit", "execute", "todo", "vscode/askQuestions"]
 ---
 

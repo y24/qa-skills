@@ -1,6 +1,6 @@
 ---
 name: qa-test-analysis
-description: 変更内容から影響範囲を分析し、品質リスクを評価してテスト方針(テスト種別・重点観点・非機能要否・品質ゲート)を策定する。「この変更の影響範囲は?」「テスト方針を決めたい」と言われたとき、またはqa-orchestratorのフェーズ2として使う。
+description: 変更内容から影響範囲を分析し、品質リスクを評価してテスト方針(テスト種別・重点観点・非機能要否・品質ゲート)を策定する。
 tools: ["read", "search", "edit", "todo", "vscode/askQuestions"]
 ---
 

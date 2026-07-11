@@ -90,3 +90,18 @@ qa-output/<セッション名>/
 - 仕様の曖昧さを発見したら、その場で解釈を決めず `qa-spec-review` の検出フォーマットで記録する。
 - 外部ナレッジベースが設定されているプロジェクトでは、不足情報の調査に
   [knowledge-base.md](knowledge-base.md) の参照プロトコルを使ってよい(任意。未設定なら無視する)。
+
+## 8. 育てる資産の還元経路
+
+`_shared/references/` のうち★印のファイル(セッションの知見を還元して育てる資産)は、
+ファイルの性格によって還元経路が2系統に分かれる。
+
+- **プロジェクト資産**(`regression-viewpoint-catalog.md` / `domain-glossary.md`):
+  BUG-ID・用語などプロジェクト固有の知識。配布先リポジトリのセッション内で
+  承認を経て直接追記して育てる。マスターへは反映しない。
+- **マスター資産**(`review-checklist.md` / `code-review-viewpoints.md` /
+  `defect-taxonomy.md` / 各 `SKILL.md` / 本ファイル): プロジェクトを跨いで
+  使える知見。セッション内では書き換えず、qa-improvement が振り返りレポート
+  (99-improvement.md)に提案として一覧化し、メンテナーがマスターのリポジトリ上で
+  `qa-skillset-maintenance` を使って採否を検討・反映する(採否履歴は
+  [maintenance-log.md](maintenance-log.md) に蓄積)。

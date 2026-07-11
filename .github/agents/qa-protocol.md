@@ -39,7 +39,7 @@
 | `phase` | フェーズ番号(成果物ファイル名の接頭辞) |
 | `artifact` | 書き出す成果物ファイル名(conventions.md §6 の命名) |
 | `skill_mode` | スキル内モードの指定(qa-spec-review のみ `"mode1"` / `"mode2"`) |
-| `inputs` | 読み込むべきインプット資料と前フェーズ成果物のパス一覧(バケツリレー) |
+| `inputs` | 読み込むべきインプット資料と前フェーズ成果物のパス一覧(バケツリレー)。Markdown変換済みの資料(qa-session.json の `converted_path`、_shared/source-conversion.md)は原本ではなく変換後パスを渡す |
 | `answers` | 前回返した `pending_questions` に対するユーザー回答(`{ "q1": "選択肢..." }`) |
 | `approved_proposals` | 前回返した `proposals` のうち承認された id の一覧。適用を指示する |
 | `user_feedback` | 承認ゲートでユーザーが出した修正指示。null 以外なら成果物を修正する |

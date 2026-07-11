@@ -75,6 +75,11 @@ python .github/skills/_shared/scripts/qa_session.py resume-info qa-output
 (`init` → インプットごとに `add-input` → フェーズごとに `add-phase`。
 スキップするフェーズも `--status skipped` で登録する)。
 
+Excel・PDF など直接読みにくい形式の資料が含まれる場合は、
+[_shared/source-conversion.md](../_shared/source-conversion.md) を読み、ここで
+markitdown により `sources/` へ変換して `add-input --converted` に変換後パスを
+記録する。以降のフェーズには変換後パスを渡す。
+
 ## Step 3: フェーズの逐次実行
 
 各フェーズについて:

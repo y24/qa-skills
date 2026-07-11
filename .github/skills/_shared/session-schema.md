@@ -12,7 +12,8 @@
     "description": "対象機能・変更の1〜2行説明"
   },
   "inputs": [
-    { "type": "spec",     "path": "docs/spec.md",             "note": "仕様書 v2" },
+    { "type": "spec",     "path": "docs/spec.xlsx",           "note": "仕様書 v2",
+      "converted_path": "qa-output/invoice-export/sources/spec.xlsx.md" },
     { "type": "plan",     "path": "docs/project-plan.md",     "note": "プロジェクト計画書" },
     { "type": "defects",  "path": "data/defects.csv",         "note": "過去不具合一覧" },
     { "type": "pr",       "path": "https://.../pull/123",     "note": "対象PR" },
@@ -55,6 +56,9 @@
 
 ## 運用ルール
 
+- `inputs` の `converted_path`(任意)は、Excel・PDF 等を markitdown で Markdown 化した
+  中間ファイルのパス([source-conversion.md](source-conversion.md))。設定されている
+  資料は、各フェーズは原本ではなく `converted_path` を読む(出典表記は原本パス)。
 - `decisions` にはユーザーの判断(除外・方針変更・承認時の条件)を必ず記録する。再開時の文脈になる。
 - `improvement_notes` には実行中に気づいたスキル自体の改善点を追記する。qa-improvement が最後に回収する。
 - 更新はフェーズ境界ごと。更新には [scripts/qa_session.py](scripts/qa_session.py) の

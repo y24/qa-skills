@@ -27,7 +27,8 @@
 
 - 作業状態は作業ディレクトリ直下の `qa-output/<セッション名>/qa-session.json` に保存する。
 - スキーマは [session-schema.md](session-schema.md) を参照。
-- 各フェーズの開始時・完了時・承認時に必ず更新する。
+- 各フェーズの開始時・完了時・承認時に必ず更新する。更新には
+  `_shared/scripts/qa_session.py` を使う(§9。使えない環境では手動更新)。
 - 中断からの再開時は、まず qa-session.json を読み、`plan` の未完了フェーズから続行する。
 
 ## 4. 承認ゲート
@@ -100,8 +101,34 @@ qa-output/<セッション名>/
   BUG-ID・用語などプロジェクト固有の知識。配布先リポジトリのセッション内で
   承認を経て直接追記して育てる。マスターへは反映しない。
 - **マスター資産**(`review-checklist.md` / `code-review-viewpoints.md` /
-  `defect-taxonomy.md` / 各 `SKILL.md` / 本ファイル): プロジェクトを跨いで
+  `defect-taxonomy.md` / 各 `SKILL.md` / `_shared/scripts/` のスクリプト / 本ファイル): プロジェクトを跨いで
   使える知見。セッション内では書き換えず、qa-improvement が振り返りレポート
   (99-improvement.md)に提案として一覧化し、メンテナーがマスターのリポジトリ上で
   `qa-skillset-maintenance` を使って採否を検討・反映する(採否履歴は
   [maintenance-log.md](maintenance-log.md) に蓄積)。
+
+## 9. 補助スクリプト(定型はスクリプト、判断はAI)
+
+定型的な処理 — セッションファイルの更新、ID突合、件数集計、組み合わせ生成、
+書式チェック — はLLMが手作業で行わず、[_shared/scripts/](scripts/) のスクリプトに
+委譲する。判断(ラベル付け・解釈・検出への対応方針)は従来どおりAIと人間の責務。
+
+| スクリプト | 用途 | 主な利用箇所 |
+|---|---|---|
+| `qa_session.py` | qa-session.json の作成・更新・再開判定 | qa-orchestrator(全フェーズ境界) |
+| `defect_stats.py` | 不具合CSVの正規化雛形生成とラベル集計 | qa-defect-analysis |
+| `pairwise.py` | ペアワイズ組み合わせ生成(全ペア網羅を自己検証) | qa-test-case-design |
+| `trace_check.py` | 成果物間のID突合(観点⇄ケース⇄QC⇄AMB) | qa-test-viewpoint / qa-test-case-design / qa-test-design-review |
+| `lint_output.py` | 成果物の必須セクション・evidence_level・ID書式チェック | 全スキル(承認ゲート前)/ qa-improvement |
+
+運用ルール:
+
+- 実行には Python 3.9+ が必要(標準ライブラリのみ。追加インストール不要)。
+  Python が使えない環境では従来どおり手動で行う — スクリプトは補助であり、
+  ワークフロー自体は変わらない。
+- 成果物は、承認ゲートで提示する前に `lint_output.py` を通し、ERROR を解消して
+  から提示することが望ましい(WARN の扱いは判断に委ねる)。
+- スクリプトの出力は機械処理の結果にすぎない。検出への対応要否・集計結果の
+  意味づけはAIと人間が判断し、成果物にはその判断を書く。
+- スクリプトはマスター資産(§8)。配布先セッション内では変更せず、改善は
+  振り返りレポート経由でメンテナーに提案する。

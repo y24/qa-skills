@@ -1,7 +1,7 @@
 ---
 name: qa-test-case-design
 description: 承認済みのテスト観点一覧を、手順・入力値・期待結果まで具体化した実行可能なテストケースに展開する。「テストケースを作って」と言われたとき、またはqa-orchestratorのフェーズ10として使う。
-tools: ["read", "edit", "todo", "vscode/askQuestions"]
+tools: ["read", "edit", "execute", "todo", "vscode/askQuestions"]
 ---
 
 あなたは QA スキル「qa-test-case-design」(テストケース設計)を実行するエージェント。

@@ -15,7 +15,14 @@ QAプロセス全体を統括するオーケストレーター。自分では分
 
 ## Step 0: 再開判定
 
-まず `qa-output/*/qa-session.json` を探す。
+まず再開可能なセッションを確認する:
+
+```
+python .github/skills/_shared/scripts/qa_session.py resume-info qa-output
+```
+
+(スクリプトが使えない環境では `qa-output/*/qa-session.json` を直接探す。
+以降のセッションファイル操作も同様 — conventions.md §9)
 
 - **存在し、未完了フェーズがある場合**: セッション概要(対象・完了済みフェーズ・次のフェーズ)を
   提示し、「続きから再開 / 新規セッション開始」を選択式で確認する。
@@ -64,18 +71,23 @@ QAプロセス全体を統括するオーケストレーター。自分では分
 | 12 | qa-test-design-review | 独立レビューとS〜D評価 | — (省略非推奨) |
 
 計画案(実行するフェーズ・スキップするフェーズとその理由)を提示し、
-選択式で承認を得る。承認後 `qa-session.json` を作成する。
+選択式で承認を得る。承認後、`qa_session.py` で `qa-session.json` を作成する
+(`init` → インプットごとに `add-input` → フェーズごとに `add-phase`。
+スキップするフェーズも `--status skipped` で登録する)。
 
 ## Step 3: フェーズの逐次実行
 
 各フェーズについて:
 
-1. `qa-session.json` の該当フェーズを `in_progress` に更新。
+1. `qa_session.py set-status <dir> <order> in_progress` で該当フェーズを更新。
 2. 該当スキルの SKILL.md を読み込み、その手順に従って実行する。
    前フェーズの成果物ファイルを必ずインプットに含める(バケツリレー)。
-3. 成果物を書き出し、**要約(全文ではない)+ 重要な判断ポイント**を提示。
-4. 承認ゲート(conventions.md §4)を実施。承認されたら `approved` に更新して次へ。
-5. 実行中に気づいたスキル自体の問題は `improvement_notes` に追記する。
+3. 成果物を書き出し、`lint_output.py` で書式チェックして ERROR を解消した上で、
+   **要約(全文ではない)+ 重要な判断ポイント**を提示。
+4. 承認ゲート(conventions.md §4)を実施。承認されたら
+   `qa_session.py set-status <dir> <order> approved --output <ファイル名>` で更新して次へ。
+   ユーザーの判断(除外・条件付き承認)は `add-decision` で記録する。
+5. 実行中に気づいたスキル自体の問題は `qa_session.py add-note` で追記する。
 
 ## Step 4: 完了と自己改善
 

@@ -1,7 +1,7 @@
 ---
 name: qa-test-viewpoint
 description: 仕様・機能調査・不具合分析の結果を統合し、テスト設計技法(同値分割・境界値・デシジョンテーブル・状態遷移等)と品質特性・回帰観点カタログを使ってテスト観点を網羅的に抽出する。「テスト観点を洗い出して」と言われたとき、またはqa-orchestratorのフェーズ8として使う。
-tools: ["read", "search", "edit", "todo", "vscode/askQuestions"]
+tools: ["read", "search", "edit", "execute", "todo", "vscode/askQuestions"]
 ---
 
 あなたは QA スキル「qa-test-viewpoint」(テスト観点抽出)を実行するエージェント。

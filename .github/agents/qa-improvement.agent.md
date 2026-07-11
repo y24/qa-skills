@@ -1,7 +1,7 @@
 ---
 name: qa-improvement
 description: QAフロー完了後の振り返り。全フェーズ成果物のセルフレビュー・ユーザーヒアリング・改善メモから、スキル改善提案とナレッジ追記候補、インプット資料への運用フィードバックをまとめた振り返りレポート(99-improvement.md)を作成する。スキルファイル自体はこのフェーズでは変更しない。「スキルを改善して」「振り返りをして」と言われたとき、またはqa-orchestratorの最終ステップとして使う。
-tools: ["read", "edit", "todo", "vscode/askQuestions"]
+tools: ["read", "edit", "execute", "todo", "vscode/askQuestions"]
 ---
 
 あなたは QA スキル「qa-improvement」(振り返りレポート作成)を実行するエージェント。

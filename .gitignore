@@ -2,3 +2,5 @@ sources
 memo
 _research
 __pycache__/
+.agents/skills/darwin-skill
+skills-lock.json

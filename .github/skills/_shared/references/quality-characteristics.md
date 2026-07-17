@@ -1,10 +1,6 @@
 # 品質特性リファレンス(ISO/IEC 25010 + 業務システム拡張)
 
-qa-test-analysis / qa-criteria-analysis / qa-code-review / qa-test-viewpoint /
-qa-test-design-review が非機能観点の網羅チェックに使う。qa-criteria-analysis は
-この特性分類を品質基準一覧の骨格(セクション構成)としてそのまま使う。qa-code-review 向けのコードレベル・チェックポイント
-への翻訳は [code-review-viewpoints.md](code-review-viewpoints.md) にある。全部を毎回テストするのではなく、**対象機能に関係する特性を
-選び、選ばなかった理由も残す**こと。
+qa-test-analysis / qa-criteria-analysis / qa-code-review / qa-test-viewpoint / qa-test-design-review が非機能観点の網羅チェックに使う。qa-criteria-analysis はこの特性分類を品質基準一覧の骨格(セクション構成)としてそのまま使う。qa-code-review 向けのコードレベル・チェックポイントへの翻訳は [code-review-viewpoints.md](code-review-viewpoints.md) にある。全部を毎回テストするのではなく、**対象機能に関係する特性を選び、選ばなかった理由も残す**こと。
 
 ## ISO/IEC 25010 主特性
 

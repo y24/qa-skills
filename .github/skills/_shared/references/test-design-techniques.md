@@ -1,7 +1,6 @@
 # テスト設計技法リファレンス
 
-qa-test-viewpoint / qa-test-case-design が参照する技法カタログ。
-技法ごとにスキルを分けず、入力の型に応じてここから選択する。
+qa-test-viewpoint / qa-test-case-design が参照する技法カタログ。技法ごとにスキルを分けず、入力の型に応じてここから選択する。
 
 ## 技法の選択基準
 
@@ -67,6 +66,4 @@ qa-test-viewpoint / qa-test-case-design が参照する技法カタログ。
 
 ## 7. エラー推測
 
-経験ベースで「ここが壊れていそう」を挙げる技法。根拠なしで使うと単なる山勘になるため、
-必ず [regression-viewpoint-catalog.md](regression-viewpoint-catalog.md)(過去不具合由来の観点)と
-組み合わせ、`sources` に過去チケットIDを付けて使う。
+経験ベースで「ここが壊れていそう」を挙げる技法。根拠なしで使うと単なる山勘になるため、必ず [regression-viewpoint-catalog.md](regression-viewpoint-catalog.md)(過去不具合由来の観点)と組み合わせ、`sources` に過去チケットIDを付けて使う。

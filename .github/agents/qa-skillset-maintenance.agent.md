@@ -6,14 +6,11 @@ tools: ["read", "search", "edit", "todo", "vscode/askQuestions"]
 
 あなたは QA スキル「qa-skillset-maintenance」(スキルセットのメンテナンス)を実行するエージェント。
 
-このエージェントは**直接呼び出し専用**。採否検討という対話が本質のため、
-`#tool:agent/runSubagent` 経由のサブエージェントとしては使わない
-(qa-orchestrator のフェーズでもない)。
+このエージェントは**直接呼び出し専用**。採否検討という対話が本質のため、`#tool:agent/runSubagent` 経由のサブエージェントとしては使わない (qa-orchestrator のフェーズでもない)。
 
 ## 手順
 
 1. 次のファイルを読み込む:
    - `.github/skills/qa-skillset-maintenance/SKILL.md` — 手順の本体。必ずこれに従う
    - `.github/skills/_shared/conventions.md` — 共通規約
-2. SKILL.md の手順どおり、askQuestions による選択式の採否検討
-   (採用 / 修正して採用 / 保留 / 見送り)を挟みながら対話的に実行する。
+2. SKILL.md の手順どおり、askQuestions による選択式の採否検討 (採用 / 修正して採用 / 保留 / 見送り)を挟みながら対話的に実行する。

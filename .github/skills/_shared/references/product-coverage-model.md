@@ -1,10 +1,8 @@
 # プロダクトカバレッジモデル(SFDIPOT)
 
-qa-test-viewpoint(観点軸の網羅チェック)が参照する。
-出典: James Bach の Heuristic Test Strategy Model(satisfice.com)。
+qa-test-viewpoint(観点軸の網羅チェック)が参照する。出典: James Bach の Heuristic Test Strategy Model(satisfice.com)。
 
-「機能一覧だけ見て観点を出すと、機能以外の6軸を丸ごと見落とす」ことを防ぐ
-チェック用の7軸。観点を出す軸としても、出し終わった一覧の漏れ確認にも使う。
+「機能一覧だけ見て観点を出すと、機能以外の6軸を丸ごと見落とす」ことを防ぐチェック用の7軸。観点を出す軸としても、出し終わった一覧の漏れ確認にも使う。
 
 | 記号 | 軸 | 見るもの |
 |---|---|---|
@@ -18,9 +16,5 @@ qa-test-viewpoint(観点軸の網羅チェック)が参照する。
 
 ## 使い方
 
-- **qa-test-viewpoint のセルフチェック**: 観点一覧を7軸に振り分け、観点がゼロの軸が
-  ないか確認する。ゼロの軸は「対象外の理由」を成果物のセクション3に書く
-  (暗黙に落とさない)。
-- 非機能特性の網羅は [quality-characteristics.md](quality-characteristics.md) が正。
-  SFDIPOT は「品質特性(どんな性質を確認するか)」ではなく
-  「プロダクトのどこを見るか」の軸であり、両者は直交する。
+- **qa-test-viewpoint のセルフチェック**: 観点一覧を7軸に振り分け、観点がゼロの軸がないか確認する。ゼロの軸は「対象外の理由」を成果物のセクション3に書く (暗黙に落とさない)。
+- 非機能特性の網羅は [quality-characteristics.md](quality-characteristics.md) が正。SFDIPOT は「品質特性(どんな性質を確認するか)」ではなく「プロダクトのどこを見るか」の軸であり、両者は直交する。

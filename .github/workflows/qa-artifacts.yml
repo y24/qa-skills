@@ -75,7 +75,8 @@ jobs:
         run: |
           set -e
           for s in qa_session.py defect_stats.py pairwise.py trace_check.py \
-                   lint_output.py metrics.py gate_check.py hook_entry.py; do
+                   lint_output.py metrics.py gate_check.py hook_entry.py \
+                   miniyaml.py validate_artifact.py render_md.py; do
             echo "--- $s"
             python "$SCRIPTS/$s" --help > /dev/null
           done
@@ -86,6 +87,115 @@ jobs:
           # hook 設定は形式が違うため Copilot 用と Claude Code 用の2つある。
           # ずれると片方の環境でだけゲートが静かに効かなくなる(hooks.md §3)
           python .github/hooks/check_hooks_config.py
+
+      - name: PyYAML を入れる(差分テスト専用。実行時の依存ではない)
+        run: python -m pip install --quiet pyyaml
+
+      - name: miniyaml が本物のYAMLの厳密なサブセットであること
+        run: |
+          set -e
+          # miniyaml は自前実装なので、受理したものが本物のYAMLでも同じ意味で
+          # 読めることを毎回確かめる。ここが崩れると成果物が他ツールで読めなくなる
+          python - "$SCRIPTS" <<'PY'
+          import json, sys
+          sys.path.insert(0, sys.argv[1])
+          import miniyaml, yaml
+
+          def norm(v):
+              if isinstance(v, dict): return {k: norm(x) for k, x in v.items()}
+              if isinstance(v, list): return [norm(x) for x in v]
+              if v is None: return ""
+              if isinstance(v, bool): return "yes" if v else "no"
+              return str(v)
+
+          ACCEPT = [
+              "target: x\nrun_mode: process\n",
+              "meta:\n  target: 請求書\n  run_mode: process\n",
+              "v:\n  - id: VP-01\n    x: 必須項目未入力\n  - id: VP-02\n    x: 権限なし\n",
+              "a:\n  - id: X\n    t: [SC-01, SC-02]\n    s: []\n",
+              "tags:\n  - alpha\n  - beta\n",
+              "n:\n  e: |\n    行1\n    行2\n  c: |-\n    行3\n",
+              "n: >\n  aaa\n  bbb\n\n  ccc\n",
+              "a: \"コロン: を含む\"   # コメント\nb: 'q''s'\nc: plain\n",
+              "s:\n  f:\n    - name: id\n      type: string\n    - name: src\n      type: list\n",
+              "- id: B-1\n  l: A\n- id: B-2\n  l: B\n",
+              "---\na:\nb: x\n",
+              "a: |\n  行1\n    深い行\n  行2\n",
+          ]
+          bad = 0
+          for t in ACCEPT:
+              mine = miniyaml.parse(t)
+              theirs = norm(yaml.safe_load(t))
+              if mine != theirs:
+                  bad += 1
+                  print("::error::miniyaml と PyYAML が不一致")
+                  print("  入力  :", json.dumps(t, ensure_ascii=False))
+                  print("  mine  :", json.dumps(mine, ensure_ascii=False))
+                  print("  pyyaml:", json.dumps(theirs, ensure_ascii=False))
+
+          # 本物のYAMLでも誤りになる書き方は受理してはならない
+          MUST_REJECT = [
+              "a: 値: 補足\n",          # プレーンスカラー中の `: `
+              "a: 値:\n",               # 末尾コロン
+              "a: 1\n---\nb: 2\n",      # 複数ドキュメント
+              "a:\n\tb: 1\n",           # タブインデント
+              'a: "x\n',                # 引用符未閉じ
+              "a: [x, y\n",             # インラインseq未閉じ
+              "a: 1\na: 2\n",           # キー重複
+          ]
+          for t in MUST_REJECT:
+              try:
+                  miniyaml.parse(t)
+              except miniyaml.YamlError:
+                  continue
+              bad += 1
+              print("::error::miniyaml が受理してはならない入力を受理しました: %r" % t)
+
+          # 差分テストのスキャフォールド自体が壊れていないことの確認
+          for t in ACCEPT:
+              yaml.safe_load(t)
+
+          print("OK: 受理 %d 件 / 拒否 %d 件" % (len(ACCEPT), len(MUST_REJECT)))
+          sys.exit(1 if bad else 0)
+          PY
+
+      - name: 同梱スキーマが miniyaml と PyYAML の両方で同じに読めること
+        run: |
+          set -e
+          python - "$SCRIPTS" .github/skills/_shared/schemas <<'PY'
+          import sys, pathlib
+          sys.path.insert(0, sys.argv[1])
+          import miniyaml, yaml
+          def norm(v):
+              if isinstance(v, dict): return {k: norm(x) for k, x in v.items()}
+              if isinstance(v, list): return [norm(x) for x in v]
+              if v is None: return ""
+              if isinstance(v, bool): return "yes" if v else "no"
+              return str(v)
+          bad = 0
+          files = sorted(pathlib.Path(sys.argv[2]).glob("*.yaml"))
+          if not files:
+              print("::error::スキーマが1つもありません"); sys.exit(1)
+          for p in files:
+              text = p.read_text(encoding="utf-8")
+              if miniyaml.parse(text) != norm(yaml.safe_load(text)):
+                  print("::error::スキーマの解釈が不一致: %s" % p.name); bad += 1
+              else:
+                  print("OK: %s" % p.name)
+          sys.exit(1 if bad else 0)
+          PY
+
+      - name: defect_stats が miniyaml 移行後も同じ結果を出すこと
+        run: |
+          set -e
+          mkdir -p "$FX"
+          printf 'id,title,description\nBUG-1,"合計: 不一致",請求合計が誤る\nBUG-2,権限漏れ,承認できる\n' > "$FX/bugs.csv"
+          python "$SCRIPTS/defect_stats.py" normalize "$FX/bugs.csv" -o "$FX/labeled.yaml" > /dev/null
+          # コロンを含むタイトルが引用され、読み戻せること(miniyaml との往復)
+          grep -q 'title: "合計: 不一致"' "$FX/labeled.yaml" \
+            || { echo '::error::コロンを含むタイトルが引用されていません'; exit 1; }
+          python "$SCRIPTS/defect_stats.py" stats "$FX/labeled.yaml" > /dev/null
+          echo "OK: CSV→YAML雛形→読み戻しが通ります"
 
       - name: フィクスチャ作成(検出されるべき欠陥を仕込む)
         run: |
@@ -240,6 +350,113 @@ jobs:
             exit 1
           fi
           echo "OK: ゲート承認ガードがブロックしました"
+
+      - name: 構造化成果物のフィクスチャを作る
+        run: |
+          set -e
+          mkdir -p "$FX/qa-output/yml"
+          python "$SCRIPTS/qa_session.py" init "$FX/qa-output/yml" --name yml \
+            --feature "構造化の自己検査" --run-mode process
+          python "$SCRIPTS/qa_session.py" add-phase "$FX/qa-output/yml" \
+            --steps qa-test-viewpoint:G4
+          cat > "$FX/qa-output/yml/30-test-viewpoint.yaml" <<'EOF'
+          meta:
+            target: 請求書の申請・承認
+            run_mode: process
+          viewpoints:
+            - id: VP-01
+              subject: SC-01
+              viewpoint: 必須項目未入力で申請できないこと
+              expected: 申請ボタンが無効。invoices.status が draft のまま
+              derived_from: [同値分割]
+              traces_to: [SC-01]
+              priority: High
+              oracle: db
+              evidence_level: confirmed
+              sources: [basic-design.md#3.2]
+            - id: VP-02
+              subject: 承認
+              viewpoint: 承認者の権限が剥奪された後の取消
+              expected: 取消は不可。監査ログに拒否が1件記録される
+              derived_from: [リスク分析]
+              priority: Medium
+              oracle: db
+              evidence_level: hypothesis
+              derivation: proposed
+          narrative:
+            breakdown: |
+              該当なし
+            excluded: |
+              該当なし
+            undefined_expected: |
+              該当なし
+            coverage: |
+              該当なし
+          EOF
+
+      - name: proposed が機械的に別表へ分けられること
+        run: |
+          set -e
+          # conventions.md §5-3 はこのスキルセットで最も重い違反。散文の指示ではなく
+          # レンダラの構造として保証されていることを確かめる
+          python "$SCRIPTS/render_md.py" "$FX/qa-output/yml/30-test-viewpoint.yaml"
+          md="$FX/qa-output/yml/30-test-viewpoint.md"
+          grep -q "要件外提案" "$md" \
+            || { echo '::error::proposed の項目が別表に分けられていません(conventions.md §5-3)'; exit 1; }
+          # VP-02(proposed)が「要件外提案」見出しより後にあること
+          main_end=$(grep -n "要件外提案" "$md" | head -1 | cut -d: -f1)
+          vp02=$(grep -n "| VP-02 |" "$md" | head -1 | cut -d: -f1)
+          [ "$vp02" -gt "$main_end" ] \
+            || { echo '::error::proposed の行が本表に混ざっています'; exit 1; }
+          # 生成された Markdown は lint を通ること(生成物が規約違反では意味がない)
+          python "$SCRIPTS/lint_output.py" "$md"
+          echo "OK: proposed は構造として隔離されています"
+
+      - name: スキーマ検証が規約違反を捕まえること
+        run: |
+          set -e
+          y="$FX/qa-output/yml/30-test-viewpoint.yaml"
+          cp "$y" "$FX/keep.yaml"
+          # explicit(既定)なのに出典がない = 根拠なし事実主張(conventions.md §5-3)
+          python - "$y" <<'PY'
+          import re, sys
+          from pathlib import Path
+          p = Path(sys.argv[1])
+          text, n = re.subn(r"^[ \t]*sources: \[basic-design[^\]]*\]\n", "",
+                            p.read_text(encoding="utf-8"), flags=re.M)
+          if n != 1:
+              print("::error::フィクスチャの sources 行を削除できませんでした"); sys.exit(1)
+          p.write_text(text, encoding="utf-8")
+          PY
+          if python "$SCRIPTS/validate_artifact.py" "$y" > /dev/null; then
+            echo "::error::出典のない explicit 項目を見逃しました(conventions.md §5-3)"
+            exit 1
+          fi
+          python "$SCRIPTS/validate_artifact.py" "$y" | grep -q explicit_requires_sources \
+            || { echo '::error::期待したルールが発火していません'; exit 1; }
+          cp "$FX/keep.yaml" "$y"
+          python "$SCRIPTS/validate_artifact.py" "$y" > /dev/null
+          echo "OK: スキーマ検証が規約違反を捕まえます"
+
+      - name: Markdown を直接編集したら検出されること
+        run: |
+          set -e
+          md="$FX/qa-output/yml/30-test-viewpoint.md"
+          python "$SCRIPTS/render_md.py" "$FX/qa-output/yml/30-test-viewpoint.yaml" > /dev/null
+          python - "$md" <<'PY'
+          import sys
+          from pathlib import Path
+          p = Path(sys.argv[1])
+          p.write_text(p.read_text(encoding="utf-8").replace("| High |", "| Low |", 1),
+                       encoding="utf-8", newline="\n")
+          PY
+          if python "$SCRIPTS/gate_check.py" "$FX/qa-output/yml" > /dev/null; then
+            echo "::error::Markdown の直接編集(YAMLとのずれ)を見逃しました"
+            exit 1
+          fi
+          python "$SCRIPTS/render_md.py" "$FX/qa-output/yml/30-test-viewpoint.yaml" > /dev/null
+          python "$SCRIPTS/gate_check.py" "$FX/qa-output/yml" > /dev/null
+          echo "OK: 再生成すれば通ります"
 
   qa-artifacts:
     name: QA成果物のゲート検証

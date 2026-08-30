@@ -52,8 +52,13 @@ for _stream in (sys.stdout, sys.stderr):
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import lint_output  # noqa: E402
+import render_md  # noqa: E402
+import validate_artifact  # noqa: E402
 
 SESSION_FILE = "qa-session.json"
+
+# 構造化成果物(YAMLが正・Markdownは生成物)。conventions.md §6 の命名に従う
+YAML_ARTIFACT_RE = validate_artifact.ARTIFACT_RE
 
 # ---------------------------------------------------------------------------
 # skill-map.md §3: 承認ゲートが束ねる成果物
@@ -154,6 +159,15 @@ def find_artifacts(session_dir):
     )
 
 
+def find_structured(session_dir):
+    """構造化成果物 `NN-*.yaml` を列挙する(まだ無いセッションもある)。"""
+    d = Path(session_dir)
+    return sorted(
+        str(p) for p in d.iterdir()
+        if p.is_file() and YAML_ARTIFACT_RE.match(p.name)
+    )
+
+
 def select_targets(session_dir, session, gate=None, unapproved=False):
     """検証対象の成果物パス一覧と、選択理由を返す。"""
     files = find_artifacts(session_dir)
@@ -213,6 +227,26 @@ def run_trace(session_dir):
     return payload
 
 
+def run_schema(paths):
+    """構造化成果物をスキーマ検証する(validate_artifact を import して実行)。"""
+    return [validate_artifact.validate(p) for p in paths]
+
+
+def run_render_check(paths):
+    """Markdown が YAML から生成された内容と一致するかを見る。
+
+    一致しない場合は「Markdownを直接編集した」か「YAMLを変えて再生成していない」。
+    どちらも『YAMLが正』の前提が壊れているので検出する。
+    """
+    out = []
+    for p in paths:
+        status, msg = render_md.process(p, check=True)
+        if status in ("ok", "skipped"):
+            continue
+        out.append({"file": os.path.basename(p), "status": status, "detail": msg})
+    return out
+
+
 def trace_findings(trace, scope=None):
     """trace_check の結果から、対応が要る検出(status=finding)だけを平坦化する。
 
@@ -238,10 +272,14 @@ def trace_findings(trace, scope=None):
 # ---------------------------------------------------------------------------
 
 def build_report(args, session_dir, session, targets, reason, excluded,
-                 lint_results, trace):
+                 lint_results, trace, schema_results=None, render_findings=None):
     run_mode = (session or {}).get("run_mode")
     errors = sum(r.errors for r in lint_results)
     warnings = sum(r.warnings for r in lint_results)
+    schema_results = schema_results or []
+    render_findings = render_findings or []
+    schema_errors = sum(r.errors for r in schema_results)
+    schema_warnings = sum(r.warnings for r in schema_results)
     # ゲートで絞っているときは、対象成果物に起因する検出だけを見る
     narrowed = bool(args.gate or args.unapproved)
     scope = {os.path.basename(t) for t in targets} if narrowed else None
@@ -250,7 +288,9 @@ def build_report(args, session_dir, session, targets, reason, excluded,
     # trace_check.py 自身の exit code 意味論に合わせる: status=finding は失敗、
     # status=info(未展開観点・未反映シナリオ)は失敗にしない。判定基準を
     # こちらで勝手に緩めない(緩めるべきなら trace_check.py 側を直す)。
-    failed = errors > 0 or (bool(tfindings) and not args.lint_only)
+    failed = errors > 0 or schema_errors > 0 or bool(render_findings)
+    if tfindings and not args.lint_only:
+        failed = True
 
     return {
         "session_dir": str(session_dir) if session_dir else None,
@@ -278,6 +318,17 @@ def build_report(args, session_dir, session, targets, reason, excluded,
             "note": trace.get("note"),
             "findings": tfindings,
         },
+        "schema": {
+            "ran": bool(schema_results),
+            "errors": schema_errors,
+            "warnings": schema_warnings,
+            "files": [
+                {"path": r.path, "artifact": r.artifact,
+                 "errors": r.errors, "warnings": r.warnings, "issues": r.issues}
+                for r in schema_results
+            ],
+        },
+        "render": {"findings": render_findings},
         "failed": failed,
         "warn_only": bool(args.warn_only),
         "note": (
@@ -334,12 +385,37 @@ def print_text_report(rep):
             print("    - [{}] {}".format(f["check"], f["detail"]))
     print()
 
+    if rep["schema"]["ran"]:
+        print("## schema(構造化成果物の規約検証)")
+        print("ERROR {} 件 / WARN {} 件".format(
+            rep["schema"]["errors"], rep["schema"]["warnings"]))
+        for f in rep["schema"]["files"]:
+            shown = [i for i in f["issues"] if i["severity"] == "ERROR"]
+            if not shown:
+                continue
+            print("  {}".format(os.path.basename(f["path"])))
+            for i in shown:
+                where = " [{}]".format(i["where"]) if i.get("where") else ""
+                print("    - ERROR{}: [{}] {}".format(where, i["rule"], i["message"]))
+        print()
+
+    if rep["render"]["findings"]:
+        print("## render(Markdown が YAML と一致しているか)")
+        for f in rep["render"]["findings"]:
+            first = str(f["detail"]).splitlines()[0]
+            print("    - {}: {}".format(f["file"], first))
+        print()
+
     if rep["failed"]:
         parts = []
         if rep["lint"]["errors"]:
             parts.append("lint ERROR {} 件".format(rep["lint"]["errors"]))
+        if rep["schema"]["errors"]:
+            parts.append("schema ERROR {} 件".format(rep["schema"]["errors"]))
         if rep["trace"]["findings"]:
             parts.append("trace 検出 {} 件".format(len(rep["trace"]["findings"])))
+        if rep["render"]["findings"]:
+            parts.append("render ずれ {} 件".format(len(rep["render"]["findings"])))
         detail = " / ".join(parts)
         if rep["warn_only"]:
             print("判定: 未解消あり({})(--warn-only のため exit 0)".format(detail))
@@ -390,15 +466,21 @@ def main(argv=None):
     if args.gate and args.unapproved:
         parser.error("--gate と --unapproved は併用できません")
 
-    # --- 個別ファイルモード(PostToolUse 用): lint のみ ---
+    # --- 個別ファイルモード(PostToolUse 用): 1ファイル単位で見られる検査だけ ---
     if args.files:
         missing = [p for p in args.files if not os.path.isfile(p)]
         if missing:
             parser.error("ファイルが存在しません: {}".format(", ".join(missing)))
-        lint_results = run_lint(args.files)
+        md_files = [p for p in args.files if p.lower().endswith(".md")]
+        yaml_files = [p for p in args.files
+                      if YAML_ARTIFACT_RE.match(os.path.basename(p))]
+        lint_results = run_lint(md_files)
+        schema_results = run_schema(yaml_files)
+        render_findings = run_render_check(yaml_files)
         rep = build_report(
             args, None, None, args.files, "指定されたファイル", [],
             lint_results, {"available": False, "note": "個別ファイルモードでは実行しない"},
+            schema_results, render_findings,
         )
         if args.as_json:
             print(json.dumps(rep, ensure_ascii=False, indent=2))
@@ -433,8 +515,19 @@ def main(argv=None):
     else:
         trace = run_trace(session_dir)
 
+    # 構造化成果物(YAMLが正)。ゲートで絞るときは Markdown 側と同じ割り当てで絞る
+    structured = find_structured(session_dir)
+    if args.gate or args.unapproved:
+        wanted = {args.gate} if args.gate else unsettled_gates(session)
+        structured = [
+            p for p in structured
+            if gate_of_artifact(Path(p).with_suffix(".md").name, session) in wanted
+        ]
+    schema_results = run_schema(structured)
+    render_findings = run_render_check(structured)
+
     rep = build_report(args, session_dir, session, targets, reason, excluded,
-                       lint_results, trace)
+                       lint_results, trace, schema_results, render_findings)
     if args.as_json:
         print(json.dumps(rep, ensure_ascii=False, indent=2))
     else:

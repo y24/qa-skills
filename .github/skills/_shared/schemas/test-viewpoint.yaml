@@ -1,0 +1,88 @@
+# テスト観点一覧(30-test-viewpoint)のスキーマ
+#
+# 出力フォーマットの定義元は qa-test-viewpoint/SKILL.md、ID体系は
+# conventions.md §6-1、証拠レベルと導出区分は §5。ここはそれを機械可読に
+# したものであり、**定義元を変えたらここも追随させること**。
+#
+# 読み手: validate_artifact.py(検証)と render_md.py(Markdown生成)。
+
+artifact: test-viewpoint
+number: "30"
+title: テスト観点一覧
+mode_note: |
+  ⚠️ これは入力された情報の展開であり、網羅ではない。入力に書かれていない
+  業務知識・状態遷移・ロール間の引き継ぎ・例外は含まれない。
+
+# 台帳: IDを持つレコードの並び。ここが機械突合の対象
+ledger:
+  key: viewpoints
+  id_prefix: VP
+  # 表の列は fields の並び順でレンダリングされる
+  fields:
+    - name: id
+      label: ID
+      required: yes
+      pattern: "^VP-\\d+$"
+    - name: subject
+      label: 対象(SC/機能)
+      required: yes
+    - name: viewpoint
+      label: 観点
+      required: yes
+    - name: expected
+      label: 期待結果の要点
+      required: yes
+    - name: derived_from
+      label: 導出元(技法/特性/BUG-ID/QC-ID/仕様節)
+      type: list
+      required: yes
+    - name: traces_to
+      label: traces_to
+      type: list
+    - name: priority
+      label: 優先度
+      required: yes
+      enum: [High, Medium, Low]
+    # 業務オラクル。conventions.md §11 の指標6は、これまで期待結果の
+    # キーワード推定で出していた。enum にすることで推定が実測になる
+    - name: oracle
+      label: オラクル
+      enum: [screen, db, api, batch, external, none]
+      render: no
+    - name: evidence_level
+      enum: [confirmed, likely, hypothesis]
+      render: no
+    - name: derivation
+      enum: [explicit, inferred, proposed]
+      default: explicit
+      render: no
+    - name: sources
+      type: list
+      render: no
+
+# 適用する規約チェック(実装は validate_artifact.py。各ルールは規約の節を指す)
+rules:
+  - unique_ids                # conventions.md §6-1
+  - id_pattern                # conventions.md §6-1
+  - required_fields
+  - enum_values               # conventions.md §5-1 / §5-2
+  - explicit_requires_sources # conventions.md §5-3(根拠なし事実主張の禁止)
+  - no_vague_expected         # 期待結果に合否判定できない語を使わない
+
+# 人間向け Markdown の構成。SKILL.md の「出力フォーマット」節が定義元
+sections:
+  - num: 1
+    title: 土台の分解表
+    from: narrative.breakdown
+  - num: 2
+    title: テスト観点一覧
+    from: ledger
+  - num: 3
+    title: 対象外とした観点とその理由
+    from: narrative.excluded
+  - num: 4
+    title: 期待結果が定義できなかった観点
+    from: narrative.undefined_expected
+  - num: 5
+    title: カバレッジ確認結果
+    from: narrative.coverage

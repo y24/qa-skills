@@ -46,6 +46,9 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
       code-review-viewpoints.md         # ★品質特性→コードの見どころ
       domain-glossary.md                # ★ドメイン用語の蓄積場所
     hooks.md                # ★hooksが何を保証するかの唯一の定義元
+    schemas/                # ★台帳系成果物のスキーマ(フィールド・必須・許容値・MD構成)
+      test-viewpoint.yaml
+      test-case.yaml
     scripts/                # 定型処理の補助スクリプト(Python 3.9+ 標準ライブラリのみ)
       qa_session.py         # qa-session.json の作成・更新・再開判定
       defect_stats.py       # 不具合CSVの正規化雛形とラベル集計
@@ -53,8 +56,11 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
       trace_check.py        # 成果物間のID突合(意図モデル⇄シナリオ⇄観点⇄ケース)
       lint_output.py        # 成果物の書式・evidence_level・derivation・ID書式チェック
       metrics.py            # 指標算出(根拠参照率・トレース率・カバレッジ)
-      gate_check.py         # ★検証の単一入口(lint+突合をゲート単位で束ねる)
+      gate_check.py         # ★検証の単一入口(lint+突合+スキーマをゲート単位で束ねる)
       hook_entry.py         # hooksアダプタ(各ツールの入出力方言を吸収する薄い層)
+      miniyaml.py           # 限定サブセットのYAMLパーサー(PyYAML不要)
+      validate_artifact.py  # 構造化成果物のスキーマ検証
+      render_md.py          # YAML → 人間向けMarkdown(proposed を機械的に別表へ)
 
 .github/agents/             # GitHub Copilot 用アダプター層(2ファイルのみ)
   qa-orchestrator.agent.md  # 統括役
@@ -102,6 +108,12 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
    hooks で強制し、AIが回避できない位置に置く。ただし**ブロックしてよいのは
    誤検出しない検査だけ**。指摘の妥当性・網羅性は人間の責務のまま置く。
    定義元は [hooks.md](.github/skills/_shared/hooks.md)。
+12. **台帳はYAML、叙述はMarkdown、人が読むものは生成物** — ID・traces_to・
+   derivation を持つ台帳は `.yaml` が正で、`.md` は `render_md.py` の生成物。
+   分析の解釈・判断理由といった叙述を構造化しても何も保証されないので、
+   そこは Markdown のまま置く。**この分割が「誤検出しない検査」を可能にし、
+   hooks がブロックできる根拠になる**(原則11と対になる)。
+   規約は [conventions.md §6-2](.github/skills/_shared/conventions.md)。
 
 ## 3つの実行モード
 

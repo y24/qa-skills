@@ -92,5 +92,6 @@
 2. `conventions.md §6` の番号帯に成果物を追加(帯そのものは変えない)
 3. `scripts/lint_output.py` の `FIXED_NAMES` / `SECTION_SPECS` を追随(コメントの出典は本ファイル)
 4. `scripts/gate_check.py` の `GATE_ARTIFACTS`(§3 のゲートが束ねる成果物)を追随
-5. `.github/agents/` と `hooks.md` は**追随不要**(汎用ランナー方式・ゲート単位の検証のため、スキルが増減しても変更されない)
-6. ルート `README.md` の構成を追随
+5. 台帳系の成果物なら `_shared/schemas/<名前>.yaml` を作る(conventions.md §6-2)。叙述中心の成果物ならスキーマは不要で、従来どおり `.md` を直接書く
+6. `.github/agents/` と `hooks.md` は**追随不要**(汎用ランナー方式・ゲート単位の検証のため、スキルが増減しても変更されない)
+7. ルート `README.md` の構成を追随

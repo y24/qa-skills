@@ -18,8 +18,11 @@ QAスキル群のワークフローのうち、**入出力が決まっていて�
 | [trace_check.py](trace_check.py) | 成果物間のID突合: 意図モデル⇄シナリオ⇄観点⇄ケースの孤児参照、導出元欠落、未確認QC基準、AMB参照切れ、ID重複 | qa-intent-recovery / qa-scenario-design / qa-test-viewpoint / qa-test-case-design / qa-test-design-review |
 | [lint_output.py](lint_output.py) | 成果物の必須セクション・evidence_level・derivation の付与漏れ・ID書式・曖昧語のチェック | 全スキル(要約提示前)/ qa-improvement 手順2 |
 | [metrics.py](metrics.py) | conventions.md §11 の指標算出: 根拠参照率・根拠なし事実主張率・トレース率・モデル/シナリオ種別カバレッジ・業務オラクル保有率 | qa-improvement 手順2 / qa-scenario-design 手順7 / qa-test-design-review 手順0 |
-| [gate_check.py](gate_check.py) | **検証の単一入口。** `lint_output.py` と `trace_check.py` を承認ゲート単位で束ねる。判定基準を1箇所に閉じるためのもの | SKILL.md の手順 / hooks / CI(すべてここを呼ぶ) |
-| [hook_entry.py](hook_entry.py) | hooks アダプタ。各AIツールの hook 入出力方言を吸収して `gate_check.py` を呼び、終了コードに変換する。**判定ロジックは持たない** | hook 設定(`.github/hooks/*.json` / `.claude/settings.json` / `.agent.md` frontmatter) |
+| [gate_check.py](gate_check.py) | **検証の単一入口。** lint・ID突合・スキーマ検証・レンダリング一致を承認ゲート単位で束ねる。判定基準を1箇所に閉じるためのもの | SKILL.md の手順 / hooks / CI(すべてここを呼ぶ) |
+| [hook_entry.py](hook_entry.py) | hooks アダプタ。各AIツールの hook 入出力方言を吸収して `gate_check.py` を呼び、終了コードに変換する。**判定ロジックは持たない** | hook 設定(`.github/hooks/*.json` / `.claude/settings.json`) |
+| [miniyaml.py](miniyaml.py) | 限定サブセットのYAMLパーサー(PyYAML不要)。**真のYAMLの厳密なサブセット**であることをCIで検査している | validate_artifact / render_md / defect_stats |
+| [validate_artifact.py](validate_artifact.py) | 構造化成果物(`.yaml`)を `_shared/schemas/` のスキーマで検証。ID書式・必須・許容値・**出典のない explicit 項目**(conventions.md §5-3) | qa-test-viewpoint / qa-test-case-design(成果物を書いた直後) |
+| [render_md.py](render_md.py) | 構造化成果物から人間向け Markdown を生成。**`derivation: proposed` を機械的に別表へ分ける**。`--check` でずれを検出 | 同上 / gate_check / CI |
 
 各スクリプトの詳細な使い方は `python <スクリプト> --help` と冒頭の docstring を参照。
 
@@ -47,11 +50,27 @@ python .github/skills/_shared/scripts/trace_check.py qa-output/my-session
 python .github/skills/_shared/scripts/lint_output.py --session-dir qa-output/my-session
 python .github/skills/_shared/scripts/metrics.py qa-output/my-session
 
-# ゲート単位の検証(lint + trace をまとめて)
+# ゲート単位の検証(lint + trace + スキーマ + レンダリング一致をまとめて)
 python .github/skills/_shared/scripts/gate_check.py qa-output/my-session --gate G4
 python .github/skills/_shared/scripts/gate_check.py qa-output/my-session --unapproved
 python .github/skills/_shared/scripts/gate_check.py --files qa-output/my-session/30-test-viewpoint.md
+
+# 構造化成果物(YAMLが正・Markdownは生成物 — conventions.md §6-2)
+python .github/skills/_shared/scripts/validate_artifact.py qa-output/my-session/30-test-viewpoint.yaml
+python .github/skills/_shared/scripts/render_md.py qa-output/my-session/30-test-viewpoint.yaml
+python .github/skills/_shared/scripts/render_md.py --session-dir qa-output/my-session --check
 ```
+
+## 構造化成果物(台帳はYAML、Markdownは生成物)
+
+観点一覧・テストケースのような**台帳系の成果物**は `.yaml` に書き、`.md` を生成する(規約は conventions.md §6-2)。理由は2つ。
+
+- **誤検出しない検査ができる。** Markdown を字面で読む `lint_output.py` は列名の一致やキーワード推定に頼るため、誤検出を避けようとすると WARN 止まりになる。フィールドを直接見るスキーマ検証は誤検出しないので、**hook でブロックできる**(hooks.md §5)。
+- **規約が構造的な保証になる。** conventions.md §5-3 の「proposed を混ぜない」は散文の指示だったが、`render_md.py` が `derivation` を見て機械的に別表へ出すので、混ぜること自体ができなくなる。「explicit なのに出典がない」も、指標で事後に測るのではなくスキーマ検証でエラーになる。
+
+スキーマは [_shared/schemas/](../schemas/) にあり、フィールド・必須・許容値・Markdown の構成を定義する。**スキーマの無い成果物は従来どおり `.md` を直接書く**(両方が共存する)。
+
+YAML の読み取りは `miniyaml.py`(PyYAML 不要)。自前実装なので、**受理したものが本物のYAMLでも同じ意味で読める**ことを CI で PyYAML との差分テストにより毎回検査している。
 
 ## 4層の防御(検証はどこで効くか)
 

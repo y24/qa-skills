@@ -82,7 +82,9 @@ WRITE_TOOLS = {
     "replace_string_in_file", "createandrunterminal",
 }
 
-_ARTIFACT_RE = re.compile(r"^\d{2}-.+\.md$")
+# 成果物ファイル(conventions.md §6)。構造化成果物の .yaml も対象にする
+# — YAMLが正なので、そちらこそスキーマ検証を掛ける意味がある
+_ARTIFACT_RE = re.compile(r"^\d{2}-.+\.(?:md|ya?ml)$")
 
 
 # ---------------------------------------------------------------------------
@@ -253,8 +255,18 @@ def summarize(report, limit=12):
             loc = " L{}".format(i["line"]) if i.get("line") else ""
             lines.append("  - {}{}: {}".format(
                 os.path.basename(f["path"]), loc, i.get("message", "")))
+    for f in report.get("schema", {}).get("files", []):
+        for i in f.get("issues", []):
+            if i.get("severity") != "ERROR":
+                continue
+            where = " [{}]".format(i["where"]) if i.get("where") else ""
+            lines.append("  - {}{}: {}".format(
+                os.path.basename(f["path"]), where, i.get("message", "")))
     for t in report.get("trace", {}).get("findings", []):
         lines.append("  - [{}] {}".format(t.get("check"), t.get("detail")))
+    for r in report.get("render", {}).get("findings", []):
+        first = str(r.get("detail", "")).splitlines()
+        lines.append("  - {}: {}".format(r.get("file"), first[0] if first else ""))
     if len(lines) > limit:
         rest = len(lines) - limit
         lines = lines[:limit] + ["  - ...ほか {} 件".format(rest)]

@@ -30,6 +30,11 @@ import json
 import re
 import sys
 from collections import Counter
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from miniyaml import YamlError, parse_records  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # 共通
@@ -174,118 +179,6 @@ def cmd_normalize(args):
 
 
 # ---------------------------------------------------------------------------
-# ミニYAMLパーサー(限定サブセット)
-# ---------------------------------------------------------------------------
-# 対応する構文:
-#   - `- key: value` で始まるリスト項目と、その継続行 `  key: value`
-#   - 値: プレーンスカラー / 引用符付きスカラー / `[a, b]` 形式のインラインリスト
-#   - `#` コメント(行全体・行末)、空行、ドキュメント区切り `---`
-# 非対応(行番号付きでエラーにする): ネストしたマッピング・リスト、
-#   複数行文字列(| や >)、アンカー等その他のYAML構文。
-
-_KEY_RE = re.compile(r"^([A-Za-z0-9_\-]+):(?:\s+(.*))?$")
-
-
-class YamlError(Exception):
-    pass
-
-
-def _strip_comment(s):
-    """引用符の外にある ` #`(または先頭の `#`)以降を落とす。"""
-    quote = None
-    for i, ch in enumerate(s):
-        if quote:
-            if ch == quote:
-                quote = None
-        elif ch in "'\"":
-            quote = ch
-        elif ch == "#" and (i == 0 or s[i - 1] in " \t"):
-            return s[:i].rstrip()
-    return s.rstrip()
-
-
-def _parse_scalar(raw, lineno):
-    raw = raw.strip()
-    if raw in ("|", ">") or raw.startswith(("|", ">")) and len(raw) <= 2:
-        raise YamlError(f"{lineno}行目: 複数行文字列(| / >)には対応していません")
-    if len(raw) >= 2 and raw[0] == '"' and raw[-1] == '"':
-        try:
-            return json.loads(raw)
-        except json.JSONDecodeError:
-            raise YamlError(f"{lineno}行目: 二重引用符付き文字列を解釈できません: {raw}")
-    if len(raw) >= 2 and raw[0] == "'" and raw[-1] == "'":
-        return raw[1:-1].replace("''", "'")
-    return raw
-
-
-def _parse_value(raw, lineno):
-    raw = _strip_comment(raw or "").strip()
-    if raw == "":
-        return ""
-    if raw.startswith("["):
-        if not raw.endswith("]"):
-            raise YamlError(f"{lineno}行目: インラインリストが `]` で閉じていません: {raw}")
-        inner = raw[1:-1].strip()
-        if "[" in inner or "{" in inner:
-            raise YamlError(f"{lineno}行目: ネストしたインラインリスト/マッピングには対応していません: {raw}")
-        if inner == "":
-            return []
-        return [_parse_scalar(p, lineno) for p in inner.split(",")]
-    if raw.startswith("{"):
-        raise YamlError(f"{lineno}行目: インラインマッピング {{...}} には対応していません")
-    return _parse_scalar(raw, lineno)
-
-
-def parse_mini_yaml(text):
-    """限定サブセットのYAMLを list of dict にパースする。非対応構文は YamlError。"""
-    records = []
-    current = None
-    expected_indent = None  # 継続行のキーのインデント
-
-    for lineno, raw in enumerate(text.splitlines(), start=1):
-        line = raw.rstrip()
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#") or stripped == "---":
-            continue
-        if "\t" in line[: len(line) - len(line.lstrip())]:
-            raise YamlError(f"{lineno}行目: インデントにタブは使えません")
-
-        m = re.match(r"^(\s*)-(\s+)(.*)$", line)
-        if m and not m.group(3).startswith("-"):
-            rest = m.group(3)
-            key_m = _KEY_RE.match(rest)
-            if not key_m:
-                raise YamlError(
-                    f"{lineno}行目: リスト項目は `- key: value` 形式のみ対応です(ネストしたリスト・"
-                    f"スカラーのみの項目は非対応): {stripped}"
-                )
-            current = {}
-            records.append(current)
-            expected_indent = len(m.group(1)) + 1 + len(m.group(2))
-            key, value = key_m.group(1), key_m.group(2)
-            current[key] = _parse_value(value, lineno)
-            continue
-        if m:
-            raise YamlError(f"{lineno}行目: ネストしたリストには対応していません: {stripped}")
-
-        indent = len(line) - len(line.lstrip())
-        if current is None:
-            raise YamlError(f"{lineno}行目: リスト項目(`- key: value`)の外にキーがあります: {stripped}")
-        if indent != expected_indent:
-            raise YamlError(
-                f"{lineno}行目: インデントが不正です(期待: {expected_indent} 桁 / 実際: {indent} 桁)。"
-                f"ネストしたマッピング等には対応していません: {stripped}"
-            )
-        key_m = _KEY_RE.match(stripped)
-        if not key_m:
-            raise YamlError(f"{lineno}行目: `key: value` 形式として解釈できません: {stripped}")
-        key, value = key_m.group(1), key_m.group(2)
-        current[key] = _parse_value(value, lineno)
-
-    return records
-
-
-# ---------------------------------------------------------------------------
 # stats サブコマンド
 # ---------------------------------------------------------------------------
 
@@ -305,7 +198,7 @@ def load_records(path):
             die("JSONは list of objects 形式である必要があります。")
         return data
     try:
-        return parse_mini_yaml(text)
+        return parse_records(text)
     except YamlError as e:
         die(f"YAMLを解釈できません({path}): {e}")
 

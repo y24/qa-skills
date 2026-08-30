@@ -32,7 +32,6 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
     subagent-contract.md    # コンテキスト分離実行の入出力契約(ツール非依存)
     session-schema.md       # qa-session.json のスキーマ
     maintenance-log.md      # マスター資産の改善トリアージ手順と採否履歴
-    knowledge-base.md       # 外部ナレッジベース(OKF×LLM Wiki)連携(任意)
     source-conversion.md    # Excel/PDF等→Markdown変換(markitdown)の手順
     diff-acquisition.md     # PR・コード差分の取得手順
     references/             # AIが読むナレッジ(育てる資産)
@@ -109,13 +108,6 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
 | G5 完了 | 42 / 90 | レビュー結果と残リスク・振り返り | 依頼者・QA |
 
 未解決 Blocker・除外範囲の決定・本番データ利用は、ゲートを待たずその場で確認する。
-
-## 外部ナレッジベースとの連携(任意)
-
-ドメイン知識が用語集1ファイルに収まらないプロジェクトでは、OKF × LLM Wiki 形式の
-QAナレッジベース(別リポジトリ)を追加のドメイン知識ソースとして参照できる。
-設定・参照プロトコル・証拠レベル・還元ルールはすべて
-[_shared/knowledge-base.md](.github/skills/_shared/knowledge-base.md) に集約(必須前提ではない)。
 
 ## インプット資料のMarkdown変換(任意)
 

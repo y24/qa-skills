@@ -261,7 +261,6 @@ SECTION_SPECS = {
         ],
     },
     # 出典: qa-improvement/SKILL.md「90-improvement.md の構成」
-    # セクション7は「KB連携時のみ」のため必須にしない
     "improvement": {
         "label": "振り返りレポート",
         "sections": [
@@ -271,7 +270,6 @@ SECTION_SPECS = {
             (4, "スキル改善提案(メンテナー向け)", ("改善提案",), True),
             (5, "ナレッジ追記候補", ("ナレッジ",), True),
             (6, "運用フィードバック", ("フィードバック",), True),
-            (7, "KB ingest 候補(KB連携時のみ)", ("kb",), False),
         ],
     },
 }

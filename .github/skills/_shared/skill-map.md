@@ -15,7 +15,7 @@
 | `qa-intent-recovery` | `10-intent-recovery.md` | `00` または 要件定義書・基本設計書 | `01` / 利用ログ / 業務マニュアル / 既存ユーザーストーリー |
 | `qa-scenario-design` | `11-scenario-design.md` | `10` | `01` / `20` / `40-spec-review` |
 | `qa-test-strategy` | `20-test-strategy.md` (+ `21-test-plan.md`) | 変更内容が分かる資料(`00` / 仕様書 / PR のいずれか) | `01` / `10` / `11` / 既存の品質基準 / 計画書 |
-| `qa-spec-review` | `40-spec-review[-対象].md` | レビュー対象文書(仕様書 / 要件 / `10`) | ドメイン用語集 / 外部KB |
+| `qa-spec-review` | `40-spec-review[-対象].md` | レビュー対象文書(仕様書 / 要件 / `10`) | ドメイン用語集 |
 | `qa-code-review` | `41-code-review.md` | コード または PR・diff | `00` / `20` / 仕様書 / DBスキーマ |
 | `qa-test-viewpoint` | `30-test-viewpoint.md` | `11` または `00`・仕様書 | `01` / `20` / `40` / `41` |
 | `qa-test-case-design` | `31-test-case.md` (+ `32-test-data.md`) | `30`(承認済み) | `11` / `00` / `42` |

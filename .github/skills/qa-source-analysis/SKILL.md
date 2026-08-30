@@ -14,7 +14,6 @@ description: ソースコード・設計書・画面設計・権限定義・状�
 - [_shared/conventions.md](../_shared/conventions.md)(対話ルール・証拠レベルと導出区分・承認ゲート)
 - (対象がPR・diffの場合)[_shared/diff-acquisition.md](../_shared/diff-acquisition.md)(差分の取得手順)
 - [_shared/references/domain-glossary.md](../_shared/references/domain-glossary.md)
-- (外部KB連携時のみ)[_shared/knowledge-base.md](../_shared/knowledge-base.md)
 
 ## 隣接スキルとの違い(脱線防止)
 

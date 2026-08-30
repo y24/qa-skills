@@ -13,7 +13,6 @@ description: 仕様書・要件・意図モデルなど指定された文書の�
 - [_shared/references/spec-ambiguity-checklist.md](../_shared/references/spec-ambiguity-checklist.md)(検出カテゴリ・記録書式・複数解釈テスト)
 - [_shared/references/domain-glossary.md](../_shared/references/domain-glossary.md)(用語の正)
 - (対象に期待結果・判定基準を含む場合)[_shared/references/test-oracles.md](../_shared/references/test-oracles.md)(FEW HICCUPPS)
-- (外部KB連携時のみ)[_shared/knowledge-base.md](../_shared/knowledge-base.md)(用語検証を KB の glossary/ rules/ で補強)
 
 ## 入力
 
@@ -58,7 +57,7 @@ High の項目には、可能なら**暫定解釈**(既存機能や慣例から�
 
 ### 4. 用語の検証
 
-未知の用語・表記ゆれを発見したら domain-glossary.md への追記候補として挙げる。外部KB連携時は、文書中の用語が KB の定義・表記と一致するかの検証にも使う(カテゴリ1の検出精度が上がる)。KB と文書が矛盾する場合は AMB として検出し、KB 未収載の用語は domain-glossary.md の「KB ingest 待ち」節への記録候補とする。
+未知の用語・表記ゆれを発見したら domain-glossary.md への追記候補として挙げる。用語集の定義と文書の記述が矛盾する場合は、どちらかを黙って採用せず AMB として検出する。
 
 ### 5. ユーザー判定
 

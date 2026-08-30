@@ -22,7 +22,6 @@ description: 要件定義書・基本設計書・画面・権限定義から、A
 - [_shared/references/business-scenario-patterns.md](../_shared/references/business-scenario-patterns.md)(業務プロセスの典型パターン)
 - [_shared/references/domain-glossary.md](../_shared/references/domain-glossary.md)
 - 前段の成果物: 根拠抽出(`00`、深さCを含むものが望ましい)、不具合分析(`01`)
-- (外部KB連携時のみ)[_shared/knowledge-base.md](../_shared/knowledge-base.md)
 
 ## 入力
 

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """構造化成果物(YAML)のスキーマ検証。
 
-`30-test-viewpoint.yaml` のような**台帳系の成果物**を `_shared/schemas/` の
+`30-test-viewpoint/` のような**台帳系の成果物**(台帳CSV + notes.md)を `_shared/schemas/` の
 スキーマに照らして検証する。Markdown を字面で検査する `lint_output.py` と違い、
 **フィールドを直接見るので誤検出しない** — だからこそ hook でブロックできる
 (hooks.md §5「ブロックしてよいのは誤検出しない検査だけ」)。
@@ -21,17 +21,18 @@
 エラーになる**。「指標の悪化ではなく規約違反として扱う」が文字どおりになる。
 
 使用例:
-    python validate_artifact.py qa-output/s1/30-test-viewpoint.yaml
+    python validate_artifact.py qa-output/s1/30-test-viewpoint
     python validate_artifact.py --session-dir qa-output/s1
-    python validate_artifact.py qa-output/s1/30-test-viewpoint.yaml --json
+    python validate_artifact.py qa-output/s1/30-test-viewpoint --json
 
-スキーマは成果物のファイル名から引く(`NN-<名前>.yaml` → `schemas/<名前>.yaml`)。
+スキーマは成果物ディレクトリ名から引く(`NN-<名前>/` → `schemas/<名前>.yaml`)。
 対応するスキーマが無い成果物は検証をスキップする(段階導入のため)。
 
 exit code: 0=エラーなし / 1=エラーあり / 2=使用法エラー
 """
 
 import argparse
+import csv
 import json
 import os
 import re
@@ -50,7 +51,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import miniyaml  # noqa: E402
 
 SCHEMA_DIR = Path(__file__).resolve().parent.parent / "schemas"
-ARTIFACT_RE = re.compile(r"^(\d{2})-([0-9a-z][0-9a-z\-]*)\.ya?ml$")
+ARTIFACT_RE = re.compile(r"^(\d{2})-([0-9a-z][0-9a-z\-]*)$")
 
 # lint_output.py §5 と同じ語(定義元: qa-test-case-design の品質基準)
 AMBIGUOUS_WORDS = ("正しく", "正しい", "適切に", "適切な", "適切で",
@@ -115,6 +116,147 @@ def ledgers_of(schema):
     if "ledger" in schema:
         return [schema["ledger"]]
     return []
+
+
+# ---------------------------------------------------------------------------
+# 成果物の読み込み(台帳はCSV、叙述は notes.md)
+#
+# 台帳を CSV にしているのは、QAの現場が表計算で成果物を読み書きするため。
+# 1台帳=1CSVなので Excel / スプレッドシートでそのまま開ける。
+# 副次的に、LLMが書くファイルからYAMLが消える — 自前パーサー(miniyaml)が
+# 読むのはメンテナーが書くスキーマだけになり、壊れ方の面が減る。
+# ---------------------------------------------------------------------------
+
+# リスト型セルの区切り。日本語テキストにまず現れない文字を選んでいる。
+# セル内改行(Excel の Alt+Enter)でも区切れる
+LIST_SEPARATOR = ";"
+
+NOTES_FILE = "notes.md"
+_SECTION_HEAD_RE = re.compile(r"^##\s*(\d+)\s*[.．]\s*(.*)$")
+
+
+def artifact_dir_of(path):
+    """成果物のディレクトリを返す。`<NN>-<名前>/` そのものか、その中のファイル。"""
+    p = Path(path)
+    if p.is_dir():
+        return p
+    return p.parent
+
+
+def read_table(path):
+    """CSVを list of dict で読む。Excel が書く BOM / cp932 を許容する。"""
+    for encoding in ("utf-8-sig", "cp932"):
+        try:
+            with open(path, newline="", encoding=encoding) as f:
+                rows = list(csv.DictReader(f))
+            break
+        except UnicodeDecodeError:
+            continue
+    else:
+        raise ValueError("文字コードを判別できません(UTF-8 / cp932 のいずれでもない)")
+    out = []
+    for row in rows:
+        rec = {}
+        for k, v in row.items():
+            if k is None:
+                continue
+            key = str(k).strip().lstrip("﻿")
+            if not key:
+                continue
+            rec[key] = (v or "").strip()
+        if any(rec.values()):
+            out.append(rec)
+    return out
+
+
+def split_list(value):
+    """リスト型セルを分解する。セル内改行 → `;` の順で区切る。"""
+    text = str(value or "").strip()
+    if not text:
+        return []
+    parts = re.split(r"\r?\n", text) if "\n" in text else text.split(LIST_SEPARATOR)
+    return [p.strip() for p in parts if p.strip()]
+
+
+def coerce(records, ledger):
+    """スキーマの `type: list` に従ってセルを分解する。他は文字列のまま。"""
+    list_fields = {f["name"] for f in ledger["fields"] if f.get("type") == "list"}
+    for rec in records:
+        for name in list_fields:
+            if name in rec:
+                rec[name] = split_list(rec[name])
+    return records
+
+
+def parse_notes(path, schema):
+    """notes.md から対象名と叙述セクションを取り出す。
+
+    見出しは成果物と同じ `## <番号>. <タイトル>` を使う。番号で対応づけるので、
+    タイトルの言い回しが多少ぶれても拾える。
+    """
+    target, narrative = "", {}
+    if not Path(path).is_file():
+        return target, narrative
+    text = Path(path).read_text(encoding="utf-8-sig")
+    by_num = {}
+    for sec in schema.get("sections", []):
+        src = str(sec.get("from", ""))
+        if src.startswith("narrative."):
+            by_num[str(sec["num"])] = src.split(".", 1)[1]
+
+    current, buf = None, []
+    for line in text.splitlines():
+        if line.startswith("# ") and not target:
+            head = line[2:].strip()
+            target = head.split(":", 1)[1].strip() if ":" in head else head
+            continue
+        m = _SECTION_HEAD_RE.match(line)
+        if m:
+            if current:
+                narrative[current] = "\n".join(buf).strip("\n")
+            current, buf = by_num.get(m.group(1)), []
+            continue
+        if current:
+            buf.append(line)
+    if current:
+        narrative[current] = "\n".join(buf).strip("\n")
+    return target, narrative
+
+
+def run_mode_of(artifact_dir):
+    """run_mode は qa-session.json が持つ(成果物側に二重に書かない)。"""
+    session = Path(artifact_dir).parent / "qa-session.json"
+    if not session.is_file():
+        return ""
+    try:
+        return str(json.loads(session.read_text(encoding="utf-8")).get("run_mode", "") or "")
+    except (OSError, ValueError):
+        return ""
+
+
+def load_artifact(path, schema):
+    """成果物ディレクトリを読み、検証・描画が使う dict にする。
+
+    戻り値: (data, errors)。errors は [(where, message)]。
+    """
+    d = artifact_dir_of(path)
+    errors = []
+    data = {"meta": {}, "narrative": {}}
+
+    for ledger in ledgers_of(schema):
+        key = ledger["key"]
+        csv_path = d / "{}.csv".format(key)
+        if not csv_path.is_file():
+            continue
+        try:
+            data[key] = coerce(read_table(csv_path), ledger)
+        except (OSError, ValueError, csv.Error) as e:
+            errors.append(("{}.csv".format(key), "読み込めません: {}".format(e)))
+
+    target, narrative = parse_notes(d / NOTES_FILE, schema)
+    data["narrative"] = narrative
+    data["meta"] = {"target": target, "run_mode": run_mode_of(d)}
+    return data, errors
 
 
 def field_value(record, field):
@@ -256,21 +398,14 @@ def validate(path):
         result.add("ERROR", None, "schema", "スキーマを読めません: {}".format(e))
         return result
 
-    try:
-        with open(path, encoding="utf-8") as f:
-            data = miniyaml.parse(f.read())
-    except miniyaml.YamlError as e:
-        result.add("ERROR", None, "parse", "YAMLを解釈できません: {}".format(e))
-        return result
-    except (OSError, UnicodeDecodeError) as e:
-        result.add("ERROR", None, "io", "ファイルを読み込めません: {}".format(e))
-        return result
-
+    data, io_errors = load_artifact(path, schema)
+    for where, message in io_errors:
+        result.add("ERROR", where, "io", message)
     result.artifact = schema.get("artifact")
-    if not isinstance(data, dict):
-        result.add("ERROR", None, "structure",
-                   "トップレベルはマッピングである必要があります")
-        return result
+    if not data.get("meta", {}).get("target"):
+        result.add("WARN", NOTES_FILE, "structure",
+                   "対象名が読み取れません。`# <タイトル>: <対象>` の見出しを "
+                   "notes.md の先頭に書いてください")
 
     ledgers = ledgers_of(schema)
     if not ledgers:
@@ -284,12 +419,8 @@ def validate(path):
         optional = _truthy(ledger.get("optional", "no"))
         if is_empty(records):
             if not optional:
-                result.add("ERROR", None, "structure",
-                           "台帳 `{}` がありません(または空です)".format(key))
-            continue
-        if not isinstance(records, list) or not all(isinstance(r, dict) for r in records):
-            result.add("ERROR", None, "structure",
-                       "`{}` は `- key: value` のリストである必要があります".format(key))
+                result.add("ERROR", "{}.csv".format(key), "structure",
+                           "台帳 `{0}.csv` がありません(または行が空です)".format(key))
             continue
 
         # 未知のフィールドは警告(綴り間違いの検出。落としはしない)
@@ -351,10 +482,10 @@ def collect(args, parser):
         if not d.is_dir():
             parser.error("ディレクトリが存在しません: {}".format(d))
         return sorted(str(p) for p in d.iterdir()
-                      if p.is_file() and ARTIFACT_RE.match(p.name))
-    missing = [p for p in args.files if not os.path.isfile(p)]
+                      if p.is_dir() and ARTIFACT_RE.match(p.name))
+    missing = [p for p in args.files if not os.path.isdir(p)]
     if missing:
-        parser.error("ファイルが存在しません: {}".format(", ".join(missing)))
+        parser.error("成果物ディレクトリが存在しません: {}".format(", ".join(missing)))
     return args.files
 
 
@@ -386,7 +517,8 @@ def main(argv=None):
         epilog="exit code: 0=エラーなし / 1=エラーあり / 2=使用法エラー。"
                "規約の出典: conventions.md §5・§6-1。",
     )
-    parser.add_argument("files", nargs="*", help="検証する成果物 .yaml")
+    parser.add_argument("files", nargs="*",
+                        help="検証する成果物ディレクトリ(例 qa-output/s1/30-test-viewpoint)")
     parser.add_argument("--session-dir", help="セッションディレクトリ配下をすべて検証する")
     parser.add_argument("--json", action="store_true", dest="as_json",
                         help="機械可読JSONで出力する")

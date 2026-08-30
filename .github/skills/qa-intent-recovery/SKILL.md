@@ -145,10 +145,11 @@ LLM が生成したストーリーに繰り返し現れる欠陥を、書いた�
 
 ## 出力フォーマット
 
-**この成果物は台帳系なので `10-intent-recovery.yaml` に書く**(conventions.md §6-2)。Markdown は生成物であり、直接書かない。
+**この成果物は台帳系なので `10-intent-recovery/` に台帳CSVと notes.md を書く**(conventions.md §6-2)。Markdown は生成物であり、直接書かない。
 
-1. `10-intent-recovery.yaml` を書く。フィールド・必須・許容値の定義元は [_shared/schemas/intent-recovery.yaml](../_shared/schemas/intent-recovery.yaml)
-2. `validate_artifact.py` で規約検証 → `render_md.py` で Markdown を生成(コマンドは conventions.md §6-2)
+1. `10-intent-recovery/<台帳名>.csv` を書く。台帳名・列・必須・許容値の定義元は [_shared/schemas/intent-recovery.yaml](../_shared/schemas/intent-recovery.yaml)
+2. `10-intent-recovery/notes.md` に叙述セクションを書く(成果物と同じ `## <番号>. <タイトル>` の見出し)
+3. `validate_artifact.py 10-intent-recovery` で規約検証 → `render_md.py 10-intent-recovery` で Markdown を生成
 
 `derivation: proposed` の別表・別節への振り分けはレンダラが機械的に行う。手で分けない。
 

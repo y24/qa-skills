@@ -1,0 +1,2 @@
+﻿id,from_state,operation,to_state,actor,trigger,guard,sources,derivation,evidence_level
+TRN-01,STT-01,申請,STT-02,ACT-01,申請ボタン,必須項目が充足していること,basic-design.md#3.2,,

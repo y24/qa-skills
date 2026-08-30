@@ -20,9 +20,9 @@ QAスキル群のワークフローのうち、**入出力が決まっていて�
 | [metrics.py](metrics.py) | conventions.md §11 の指標算出: 根拠参照率・根拠なし事実主張率・トレース率・モデル/シナリオ種別カバレッジ・業務オラクル保有率 | qa-improvement 手順2 / qa-scenario-design 手順7 / qa-test-design-review 手順0 |
 | [gate_check.py](gate_check.py) | **検証の単一入口。** lint・ID突合・スキーマ検証・レンダリング一致を承認ゲート単位で束ねる。判定基準を1箇所に閉じるためのもの | SKILL.md の手順 / hooks / CI(すべてここを呼ぶ) |
 | [hook_entry.py](hook_entry.py) | hooks アダプタ。各AIツールの hook 入出力方言を吸収して `gate_check.py` を呼び、終了コードに変換する。**判定ロジックは持たない** | hook 設定(`.github/hooks/*.json` / `.claude/settings.json`) |
-| [miniyaml.py](miniyaml.py) | 限定サブセットのYAMLパーサー(PyYAML不要)。**真のYAMLの厳密なサブセット**であることをCIで検査している | validate_artifact / render_md / defect_stats |
-| [validate_artifact.py](validate_artifact.py) | 構造化成果物(`.yaml`)を `_shared/schemas/` のスキーマで検証。ID書式・必須・許容値・**出典のない explicit 項目**(conventions.md §5-3) | qa-test-viewpoint / qa-test-case-design(成果物を書いた直後) |
-| [render_md.py](render_md.py) | 構造化成果物から人間向け Markdown を生成。**`derivation: proposed` を機械的に別表へ分ける**。`--check` でずれを検出 | 同上 / gate_check / CI |
+| [miniyaml.py](miniyaml.py) | スキーマ(YAML)を読む限定パーサー(PyYAML不要)。**真のYAMLの厳密なサブセット**であることをCIで検査している | validate_artifact / render_md / defect_stats |
+| [validate_artifact.py](validate_artifact.py) | 台帳CSVを `_shared/schemas/` のスキーマで検証。ID書式・必須・許容値・**出典のない explicit 項目**(conventions.md §5-3) | 台帳系スキル(成果物を書いた直後) |
+| [render_md.py](render_md.py) | 台帳CSV + notes.md から人間向け Markdown を生成。**`derivation: proposed` を機械的に別表へ分ける**。`--check` でずれを検出 | 同上 / gate_check / CI |
 
 各スクリプトの詳細な使い方は `python <スクリプト> --help` と冒頭の docstring を参照。
 
@@ -55,22 +55,34 @@ python .github/skills/_shared/scripts/gate_check.py qa-output/my-session --gate 
 python .github/skills/_shared/scripts/gate_check.py qa-output/my-session --unapproved
 python .github/skills/_shared/scripts/gate_check.py --files qa-output/my-session/30-test-viewpoint.md
 
-# 構造化成果物(YAMLが正・Markdownは生成物 — conventions.md §6-2)
-python .github/skills/_shared/scripts/validate_artifact.py qa-output/my-session/30-test-viewpoint.yaml
-python .github/skills/_shared/scripts/render_md.py qa-output/my-session/30-test-viewpoint.yaml
+# 構造化成果物(台帳CSVが正・Markdownは生成物 — conventions.md §6-2)
+python .github/skills/_shared/scripts/validate_artifact.py qa-output/my-session/30-test-viewpoint
+python .github/skills/_shared/scripts/render_md.py qa-output/my-session/30-test-viewpoint
 python .github/skills/_shared/scripts/render_md.py --session-dir qa-output/my-session --check
 ```
 
-## 構造化成果物(台帳はYAML、Markdownは生成物)
+## 構造化成果物(台帳はCSV、Markdownは生成物)
 
-観点一覧・テストケースのような**台帳系の成果物**は `.yaml` に書き、`.md` を生成する(規約は conventions.md §6-2)。理由は2つ。
+観点一覧・テストケースのような**台帳系の成果物**は、成果物ごとのディレクトリに台帳CSVと `notes.md` を置き、そこから `.md` を生成する(規約は conventions.md §6-2)。
 
-- **誤検出しない検査ができる。** Markdown を字面で読む `lint_output.py` は列名の一致やキーワード推定に頼るため、誤検出を避けようとすると WARN 止まりになる。フィールドを直接見るスキーマ検証は誤検出しないので、**hook でブロックできる**(hooks.md §5)。
-- **規約が構造的な保証になる。** conventions.md §5-3 の「proposed を混ぜない」は散文の指示だったが、`render_md.py` が `derivation` を見て機械的に別表へ出すので、混ぜること自体ができなくなる。「explicit なのに出典がない」も、指標で事後に測るのではなくスキーマ検証でエラーになる。
+```
+qa-output/<セッション名>/
+  30-test-viewpoint/
+    viewpoints.csv     ← 台帳。表計算でそのまま開ける
+    notes.md           ← 叙述
+  30-test-viewpoint.md ← 生成物。人間が読むのはこれ
+```
 
-スキーマは [_shared/schemas/](../schemas/) にあり、フィールド・必須・許容値・Markdown の構成を定義する。**スキーマの無い成果物は従来どおり `.md` を直接書く**(両方が共存する)。
+なぜこの形か。
 
-YAML の読み取りは `miniyaml.py`(PyYAML 不要)。自前実装なので、**受理したものが本物のYAMLでも同じ意味で読める**ことを CI で PyYAML との差分テストにより毎回検査している。
+- **表計算で読み書きできる。** QAの成果物は最後は人がレビューし、しばしば手で直す。1台帳=1CSVなら Excel / スプレッドシートでそのまま開ける(BOM付きUTF-8で書き、Excel が保存する cp932 も読める)。
+- **誤検出しない検査ができる。** Markdown を字面で読む `lint_output.py` は列名の一致やキーワード推定に頼るため、誤検出を避けようとすると WARN 止まりになる。列を直接見るスキーマ検証は誤検出しないので、**hook でブロックできる**(hooks.md §1)。
+- **規約が構造的な保証になる。** conventions.md §5-3 の「proposed を混ぜない」は散文の指示だったが、`render_md.py` が `derivation` 列を見て機械的に別表へ出すので、混ぜること自体ができなくなる。「explicit なのに出典がない」も、指標で事後に測るのではなくスキーマ検証でエラーになる。
+- **LLMが書くファイルからYAMLが消える。** 自前パーサー(`miniyaml.py`)が読むのはメンテナーが書くスキーマだけになり、インデント崩れのような壊れ方の面が減る。
+
+スキーマは [_shared/schemas/](../schemas/) にあり、台帳・列・必須・許容値・Markdown の構成を定義する。**スキーマの無い成果物は従来どおり `.md` を直接書く**(両方が共存する)。
+
+厳密に列へ割り切らない箇所もある。シナリオの手順のように「1件が複数行を持つ」データは、子テーブルへ正規化せず**セル内改行(Excel なら Alt+Enter)で1行=1ステップ**として持つ。多少のファジーさと引き換えに、表計算で書けることを優先している。
 
 ## 4層の防御(検証はどこで効くか)
 

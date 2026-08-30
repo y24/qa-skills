@@ -344,59 +344,50 @@ jobs:
           fi
           echo "OK: ゲート承認ガードがブロックしました"
 
-      - name: 構造化成果物のフィクスチャを作る
+      - name: 構造化成果物のフィクスチャを作る(台帳CSV + notes.md)
         run: |
           set -e
-          mkdir -p "$FX/qa-output/yml"
+          A="$FX/qa-output/yml/30-test-viewpoint"
+          mkdir -p "$A"
           python "$SCRIPTS/qa_session.py" init "$FX/qa-output/yml" --name yml \
             --feature "構造化の自己検査" --run-mode process
           python "$SCRIPTS/qa_session.py" add-phase "$FX/qa-output/yml" \
             --steps qa-test-viewpoint:G4
-          cat > "$FX/qa-output/yml/30-test-viewpoint.yaml" <<'EOF'
-          meta:
-            target: 請求書の申請・承認
-            run_mode: process
-          viewpoints:
-            - id: VP-01
-              subject: SC-01
-              viewpoint: 必須項目未入力で申請できないこと
-              expected: 申請ボタンが無効。invoices.status が draft のまま
-              derived_from: [同値分割]
-              traces_to: [SC-01]
-              priority: High
-              oracle: db
-              evidence_level: confirmed
-              sources: [basic-design.md#3.2]
-            - id: VP-02
-              subject: 承認
-              viewpoint: 承認者の権限が剥奪された後の取消
-              expected: 取消は不可。監査ログに拒否が1件記録される
-              derived_from: [リスク分析]
-              priority: Medium
-              oracle: db
-              evidence_level: hypothesis
-              derivation: proposed
-          narrative:
-            breakdown: |
-              該当なし
-            excluded: |
-              該当なし
-            undefined_expected: |
-              該当なし
-            coverage: |
-              該当なし
-          EOF
+          cat > "$A/viewpoints.csv" <<'CSV'
+          id,subject,viewpoint,expected,derived_from,traces_to,priority,oracle,evidence_level,derivation,sources
+          VP-01,SC-01,必須項目未入力で申請できないこと,申請ボタンが無効。invoices.status が draft のまま,同値分割,SC-01,High,db,confirmed,,basic-design.md#3.2
+          VP-02,承認,承認者の権限が剥奪された後の取消,取消は不可。監査ログに拒否が1件記録される,リスク分析,,Medium,db,hypothesis,proposed,
+          CSV
+          cat > "$A/notes.md" <<'NOTES'
+          # テスト観点一覧: 請求書の申請・承認
+
+          ## 1. 土台の分解表
+
+          該当なし
+
+          ## 3. 対象外とした観点とその理由
+
+          該当なし
+
+          ## 4. 期待結果が定義できなかった観点
+
+          該当なし
+
+          ## 5. カバレッジ確認結果
+
+          該当なし
+          NOTES
 
       - name: proposed が機械的に別表へ分けられること
         run: |
           set -e
           # conventions.md §5-3 はこのスキルセットで最も重い違反。散文の指示ではなく
           # レンダラの構造として保証されていることを確かめる
-          python "$SCRIPTS/render_md.py" "$FX/qa-output/yml/30-test-viewpoint.yaml"
+          A="$FX/qa-output/yml/30-test-viewpoint"
+          python "$SCRIPTS/render_md.py" "$A"
           md="$FX/qa-output/yml/30-test-viewpoint.md"
           grep -q "要件外提案" "$md" \
             || { echo '::error::proposed の項目が別表に分けられていません(conventions.md §5-3)'; exit 1; }
-          # VP-02(proposed)が「要件外提案」見出しより後にあること
           main_end=$(grep -n "要件外提案" "$md" | head -1 | cut -d: -f1)
           vp02=$(grep -n "| VP-02 |" "$md" | head -1 | cut -d: -f1)
           [ "$vp02" -gt "$main_end" ] \
@@ -408,82 +399,82 @@ jobs:
       - name: スキーマ検証が規約違反を捕まえること
         run: |
           set -e
-          y="$FX/qa-output/yml/30-test-viewpoint.yaml"
-          cp "$y" "$FX/keep.yaml"
+          A="$FX/qa-output/yml/30-test-viewpoint"
+          cp "$A/viewpoints.csv" "$FX/keep.csv"
           # explicit(既定)なのに出典がない = 根拠なし事実主張(conventions.md §5-3)
-          python - "$y" <<'PY'
-          import re, sys
-          from pathlib import Path
-          p = Path(sys.argv[1])
-          text, n = re.subn(r"^[ \t]*sources: \[basic-design[^\]]*\]\n", "",
-                            p.read_text(encoding="utf-8"), flags=re.M)
-          if n != 1:
-              print("::error::フィクスチャの sources 行を削除できませんでした"); sys.exit(1)
-          p.write_text(text, encoding="utf-8")
-          PY
-          if python "$SCRIPTS/validate_artifact.py" "$y" > /dev/null; then
+          sed -i 's|,basic-design.md#3.2|,|' "$A/viewpoints.csv"
+          if python "$SCRIPTS/validate_artifact.py" "$A" > /dev/null; then
             echo "::error::出典のない explicit 項目を見逃しました(conventions.md §5-3)"
             exit 1
           fi
-          python "$SCRIPTS/validate_artifact.py" "$y" | grep -q explicit_requires_sources \
+          python "$SCRIPTS/validate_artifact.py" "$A" | grep -q explicit_requires_sources \
             || { echo '::error::期待したルールが発火していません'; exit 1; }
-          cp "$FX/keep.yaml" "$y"
-          python "$SCRIPTS/validate_artifact.py" "$y" > /dev/null
+          cp "$FX/keep.csv" "$A/viewpoints.csv"
+          python "$SCRIPTS/validate_artifact.py" "$A" > /dev/null
           echo "OK: スキーマ検証が規約違反を捕まえます"
 
       - name: Markdown を直接編集したら検出されること
         run: |
           set -e
+          A="$FX/qa-output/yml/30-test-viewpoint"
           md="$FX/qa-output/yml/30-test-viewpoint.md"
-          python "$SCRIPTS/render_md.py" "$FX/qa-output/yml/30-test-viewpoint.yaml" > /dev/null
-          python - "$md" <<'PY'
-          import sys
-          from pathlib import Path
-          p = Path(sys.argv[1])
-          p.write_text(p.read_text(encoding="utf-8").replace("| High |", "| Low |", 1),
-                       encoding="utf-8", newline="\n")
-          PY
+          python "$SCRIPTS/render_md.py" "$A" > /dev/null
+          sed -i '0,/| High |/s/| High |/| Low |/' "$md"
           if python "$SCRIPTS/gate_check.py" "$FX/qa-output/yml" > /dev/null; then
-            echo "::error::Markdown の直接編集(YAMLとのずれ)を見逃しました"
+            echo "::error::Markdown の直接編集(台帳とのずれ)を見逃しました"
             exit 1
           fi
-          python "$SCRIPTS/render_md.py" "$FX/qa-output/yml/30-test-viewpoint.yaml" > /dev/null
+          python "$SCRIPTS/render_md.py" "$A" > /dev/null
           python "$SCRIPTS/gate_check.py" "$FX/qa-output/yml" > /dev/null
           echo "OK: 再生成すれば通ります"
 
       - name: 意図モデルの複数台帳とシナリオ詳細が破綻しないこと
         run: |
           set -e
-          # 意図モデルは ACT/STT/TRN/BG/HO/US など台帳を6つ以上持つ。
-          # シナリオは同じ台帳を一覧・詳細・提案の3通りに描き分ける。
-          # 生成された Markdown が lint を通ることまで確かめる
+          # 意図モデルは ACT/STT/TRN/BG/HO/US など台帳を8つ持つ(=CSV 8枚)。
+          # シナリオは同じ台帳を一覧・詳細・提案の3通りに描き分ける
           for f in 10-intent-recovery 11-scenario-design; do
-            cp "tests/fixtures/$f.yaml" "$FX/qa-output/yml/$f.yaml"
-            python "$SCRIPTS/validate_artifact.py" "$FX/qa-output/yml/$f.yaml"
-            python "$SCRIPTS/render_md.py" "$FX/qa-output/yml/$f.yaml"
+            cp -r "tests/fixtures/$f" "$FX/qa-output/yml/$f"
+            python "$SCRIPTS/validate_artifact.py" "$FX/qa-output/yml/$f"
+            python "$SCRIPTS/render_md.py" "$FX/qa-output/yml/$f"
             python "$SCRIPTS/lint_output.py" "$FX/qa-output/yml/$f.md"
           done
-          # proposed はセクション1・2に現れず、提案シナリオの節にだけ出ること
           md="$FX/qa-output/yml/11-scenario-design.md"
-          sec3=$(grep -n "^## 3\." "$md" | cut -d: -f1)
+          sec3=$(grep -n "^## 3[.]" "$md" | cut -d: -f1)
           sc02=$(grep -n "SC-02" "$md" | head -1 | cut -d: -f1)
-          [ "$sc02" -gt "$sec3" ]             || { echo '::error::proposed のシナリオが一覧・詳細に混ざっています(conventions.md §5-3)'; exit 1; }
+          [ "$sc02" -gt "$sec3" ] \
+            || { echo '::error::proposed のシナリオが一覧・詳細に混ざっています(conventions.md §5-3)'; exit 1; }
           echo "OK: 複数台帳・詳細節・提案の分離が成立しています"
 
       - name: 業務オラクル保有率が推定ではなく実測になること
         run: |
           set -e
-          out=$(python "$SCRIPTS/metrics.py" "$FX/qa-output/yml" --json)
-          echo "$out" | python -c "
+          python "$SCRIPTS/metrics.py" "$FX/qa-output/yml" --json > "$FX/metrics.json"
+          python - "$FX/metrics.json" <<'CHECK'
           import json, sys
-          d = json.load(sys.stdin)
-          k = [x for x in d if 'オラクル' in x][0]
-          note = d[k].get('注記', '')
-          if '実測' not in note:
-              print('::error::構造化成果物があるのに推定にフォールバックしています:', note)
+          d = json.load(open(sys.argv[1], encoding="utf-8"))
+          k = [x for x in d if "オラクル" in x][0]
+          note = d[k].get("注記", "")
+          if "実測" not in note:
+              print("::error::台帳CSVがあるのに推定にフォールバックしています:", note)
               sys.exit(1)
-          print('OK:', json.dumps(d[k], ensure_ascii=False))
-          "
+          print("OK:", json.dumps(d[k], ensure_ascii=False))
+          CHECK
+
+      - name: Excel が書く cp932 の台帳も読めること
+        run: |
+          set -e
+          # QAの現場は成果物を表計算で開いて保存する。日本語Windowsの Excel は
+          # cp932 で書き出すので、それを読めないと運用が成立しない
+          A="$FX/qa-output/yml/30-test-viewpoint"
+          python - "$A/viewpoints.csv" <<'CONV'
+          import sys
+          from pathlib import Path
+          p = Path(sys.argv[1])
+          p.write_bytes(p.read_text(encoding="utf-8-sig").encode("cp932"))
+          CONV
+          python "$SCRIPTS/validate_artifact.py" "$A" > /dev/null
+          echo "OK: cp932 の台帳を読めます"
 
   qa-artifacts:
     name: QA成果物のゲート検証

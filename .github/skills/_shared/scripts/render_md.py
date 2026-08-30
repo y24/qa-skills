@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """構造化成果物(YAML)から人間向け Markdown を生成する。
 
-**台帳はYAMLが正、Markdown は生成物**という運用の後半を担う。ゲートで人間が
-読むのは常に Markdown であり、YAML を人に見せない。
+**台帳(CSV)が正、Markdown は生成物**という運用の後半を担う。ゲートで人間が
+読むのは常に Markdown であり、CSV をそのまま見せない(CSVは表計算で編集するためのもの)。
 
 ## なぜレンダラを挟むのか
 
@@ -11,18 +11,18 @@ conventions.md §5-3 は「`derivation: proposed` の項目を explicit / inferr
 同じ表に混ぜてはならない」と定めている。これはこのスキルセットで**最も重い
 違反**だが、これまでは散文の指示でしかなく、守ったかどうかは目視だった。
 
-YAML では `derivation` はただのフィールドなので、**レンダラが機械的に別表へ
-出す**。混ぜること自体ができなくなる — 規約が構造的な保証になる。
+台帳では `derivation` はただの列なので、**レンダラが機械的に別表へ出す**。
+混ぜること自体ができなくなる — 規約が構造的な保証になる。
 
 ## 使い方
 
-    python render_md.py qa-output/s1/30-test-viewpoint.yaml            # .md を生成
-    python render_md.py --session-dir qa-output/s1                     # まとめて生成
-    python render_md.py --session-dir qa-output/s1 --check             # ずれの検出のみ
+    python render_md.py qa-output/s1/30-test-viewpoint            # .md を生成
+    python render_md.py --session-dir qa-output/s1                # まとめて生成
+    python render_md.py --session-dir qa-output/s1 --check        # ずれの検出のみ
 
-`--check` は既存の Markdown が YAML から生成される内容と一致するかを見る。
-一致しない場合は**Markdown が直接編集された**か、YAML を変えて再生成していない。
-どちらも「YAMLが正」の前提が壊れているので検出する(hook と CI から呼ばれる)。
+`--check` は既存の Markdown が台帳CSV + notes.md から生成される内容と一致するかを見る。
+一致しない場合は**Markdown が直接編集された**か、台帳を変えて再生成していない。
+どちらも「台帳が正」の前提が壊れているので検出する(hook と CI から呼ばれる)。
 
 exit code:
     0 = 生成成功 / (--check)ずれなし
@@ -51,8 +51,8 @@ import validate_artifact  # noqa: E402
 from validate_artifact import ARTIFACT_RE, schema_for  # noqa: E402
 
 GENERATED_NOTE = (
-    "<!-- このファイルは {src} から render_md.py が生成した。"
-    "直接編集しない(編集は YAML 側に行い、再生成する)。 -->"
+    "<!-- このファイルは {src}/ から render_md.py が生成した。"
+    "直接編集しない(台帳は {src}/*.csv、叙述は {src}/notes.md を編集して再生成する)。 -->"
 )
 
 QUICK_NOTE_PREFIX = "> ⚠️"
@@ -136,7 +136,7 @@ def render_ledger(ledger, data, filt=None):
     return "\n".join(out)
 
 
-def render_detail(ledger, data, filt=None):
+def render_detail(ledger, data, filt=None, schema=None):
     """詳細セクション。1レコードを見出し+項目の並びとして展開する。
 
     シナリオ詳細のように、1件ごとに手順表や複数の属性を持つ台帳のためのもの。
@@ -163,12 +163,14 @@ def render_detail(ledger, data, filt=None):
             if v in ("", [], None):
                 continue
             label = f.get("label", name)
-            if f.get("type") == "table" and isinstance(v, list) and v and isinstance(v[0], dict):
+            # 手順のように「1行=1項目」で読ませたい項目だけ箇条書きにする。
+            # ID の並び(traces_to 等)まで箇条書きにすると詳細節が読みにくい
+            if str(f.get("detail_style", "")).strip() == "list" and isinstance(v, list):
                 lines.append("- **{}**:".format(label))
-                lines.append("")
-                sub = render_table(f.get("fields", []), v)
-                lines.extend("  " + ln for ln in sub.splitlines())
-                lines.append("")
+                for i, item in enumerate(v, start=1):
+                    # 書き手が付けた番号は落として振り直す(ずれを持ち込まない)
+                    text = re.sub(r"^\d+\s*[.)．]\s*", "", str(item).strip())
+                    lines.append("  {}. {}".format(i, text))
             elif isinstance(v, str) and "\n" in v.strip():
                 lines.append("- **{}**:".format(label))
                 lines.append("")
@@ -219,7 +221,7 @@ def render(schema, data, src_name):
             body = render_ledger(ledger, data, filt) if ledger else "(スキーマに台帳 {} がありません)".format(key)
         elif kind == "detail":
             ledger = by_key.get(key)
-            body = render_detail(ledger, data, filt) if ledger else "(スキーマに台帳 {} がありません)".format(key)
+            body = render_detail(ledger, data, filt, schema) if ledger else "(スキーマに台帳 {} がありません)".format(key)
         else:
             body = str(narrative.get(key or src, "") or "").rstrip("\n")
             if not body.strip():
@@ -231,27 +233,27 @@ def render(schema, data, src_name):
     return re.sub(r"\n{3,}", "\n\n", text)
 
 
-def md_path_for(yaml_path):
-    p = Path(yaml_path)
-    return p.with_suffix(".md")
+def md_path_for(artifact_dir):
+    """生成先の Markdown。`<NN>-<名前>/` の隣に `<NN>-<名前>.md` を置く。"""
+    p = Path(artifact_dir)
+    return p.parent / (p.name + ".md")
 
 
-def process(yaml_path, check):
-    """1ファイルを処理する。(status, message) を返す。"""
-    schema_path = schema_for(yaml_path)
+def process(artifact_dir, check):
+    """成果物ディレクトリを1つ処理する。(status, message) を返す。"""
+    schema_path = schema_for(artifact_dir)
     if schema_path is None:
         return "skipped", "対応するスキーマがありません"
     try:
         schema = miniyaml.load(str(schema_path))
-        with open(yaml_path, encoding="utf-8") as f:
-            data = miniyaml.parse(f.read())
     except (miniyaml.YamlError, OSError) as e:
-        return "error", "読み込めません: {}".format(e)
-    if not isinstance(data, dict):
-        return "error", "トップレベルはマッピングである必要があります"
+        return "error", "スキーマを読めません: {}".format(e)
+    data, io_errors = validate_artifact.load_artifact(artifact_dir, schema)
+    if io_errors:
+        return "error", "; ".join("{}: {}".format(w, m) for w, m in io_errors)
 
-    text = render(schema, data, os.path.basename(str(yaml_path)))
-    out = md_path_for(yaml_path)
+    text = render(schema, data, os.path.basename(str(artifact_dir)))
+    out = md_path_for(artifact_dir)
 
     if not check:
         try:
@@ -290,10 +292,10 @@ def collect(args, parser):
         if not d.is_dir():
             parser.error("ディレクトリが存在しません: {}".format(d))
         return sorted(str(p) for p in d.iterdir()
-                      if p.is_file() and ARTIFACT_RE.match(p.name))
-    missing = [p for p in args.files if not os.path.isfile(p)]
+                      if p.is_dir() and ARTIFACT_RE.match(p.name))
+    missing = [p for p in args.files if not os.path.isdir(p)]
     if missing:
-        parser.error("ファイルが存在しません: {}".format(", ".join(missing)))
+        parser.error("成果物ディレクトリが存在しません: {}".format(", ".join(missing)))
     return args.files
 
 
@@ -306,7 +308,8 @@ def main(argv=None):
         ),
         epilog="exit code: 0=成功/ずれなし / 1=ずれあり・生成失敗 / 2=使用法エラー。",
     )
-    parser.add_argument("files", nargs="*", help="対象の成果物 .yaml")
+    parser.add_argument("files", nargs="*",
+                        help="対象の成果物ディレクトリ(例 qa-output/s1/30-test-viewpoint)")
     parser.add_argument("--session-dir", help="セッションディレクトリ配下をすべて対象にする")
     parser.add_argument("--check", action="store_true",
                         help="生成せず、既存の Markdown とのずれだけを検出する")
@@ -318,7 +321,7 @@ def main(argv=None):
 
     targets = collect(args, parser)
     if not targets:
-        print("対象の .yaml がありません(構造化されていないセッションです)")
+        print("構造化された成果物がありません(このセッションは Markdown 直書きです)")
         return 0
 
     failed = False

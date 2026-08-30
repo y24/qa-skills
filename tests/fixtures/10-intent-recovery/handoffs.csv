@@ -1,0 +1,2 @@
+﻿id,traces_to,from_actor,to_actor,notice_by,fails_when,deadline,sources,derivation
+HO-01,TRN-01,ACT-01,ACT-02,承認待ち一覧に表示される,承認者が退職済みで一覧に出ない,3営業日,,inferred

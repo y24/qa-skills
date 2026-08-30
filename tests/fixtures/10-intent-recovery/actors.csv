@@ -1,0 +1,3 @@
+﻿id,actor,kind,can_do,sources,derivation,evidence_level
+ACT-01,起票者,人,請求書の作成;申請;取消,basic-design.md#2.1,,
+ACT-02,承認者,人,承認;差戻し,roles.md#1,,

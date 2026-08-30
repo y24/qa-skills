@@ -1,0 +1,2 @@
+﻿id,actor,goal,traces_to,sources,evidence_level,derivation
+BG-01,ACT-01,請求書を承認まで通す,TRN-01,requirements.md#1.1,confirmed,

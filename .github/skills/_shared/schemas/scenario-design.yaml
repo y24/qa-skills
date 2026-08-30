@@ -58,24 +58,15 @@ ledgers:
         label: トリガー
         required: yes
         render: no
+      # 1行=1ステップ。セル内改行(Excelなら Alt+Enter)で区切る。
+      # 書き方の目安: `1. <Actor> が<操作>(<操作前>→<操作後>) / 引き継ぎ: <HO-ID>`
+      # 厳密な列に割らないのは、表計算で書けることを優先しているため
       - name: steps
         label: 流れ
-        type: table
+        type: list
         required: yes
         render: no
-        fields:
-          - name: num
-            label: "#"
-          - name: actor
-            label: Actor
-          - name: operation
-            label: 操作
-          - name: state_before
-            label: 操作前の状態
-          - name: state_after
-            label: 操作後の状態
-          - name: handoff
-            label: 引き継ぎ
+        detail_style: list
       - name: checkpoints
         label: チェックポイント
         type: list

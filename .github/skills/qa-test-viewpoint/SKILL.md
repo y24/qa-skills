@@ -69,41 +69,13 @@ Quick モードでは、**入力に書かれていない業務知識・状態・
 
 ## 出力フォーマット
 
-**この成果物は台帳系なので `30-test-viewpoint.yaml` に書く**(conventions.md §6-2)。Markdown は生成物であり、直接書かない。
+**この成果物は台帳系なので `30-test-viewpoint/` に台帳CSVと notes.md を書く**(conventions.md §6-2)。Markdown は生成物であり、直接書かない。
 
-1. `30-test-viewpoint.yaml` を書く。スキーマは [_shared/schemas/test-viewpoint.yaml](../_shared/schemas/test-viewpoint.yaml)(フィールド・必須・許容値の定義元)
-2. `python .github/skills/_shared/scripts/validate_artifact.py <session>/30-test-viewpoint.yaml` で規約検証
-3. `python .github/skills/_shared/scripts/render_md.py <session>/30-test-viewpoint.yaml` で Markdown を生成
+1. `30-test-viewpoint/<台帳名>.csv` を書く。台帳名・列・必須・許容値の定義元は [_shared/schemas/test-viewpoint.yaml](../_shared/schemas/test-viewpoint.yaml)
+2. `30-test-viewpoint/notes.md` に叙述セクションを書く(成果物と同じ `## <番号>. <タイトル>` の見出し)
+3. `validate_artifact.py 30-test-viewpoint` で規約検証 → `render_md.py 30-test-viewpoint` で Markdown を生成
 
-**`derivation: proposed` の項目を別表に振り分ける作業はしない。** レンダラが機械的に分ける(conventions.md §5-3)。フィールドに `derivation: proposed` と書くだけでよい。
-
-期待結果の確認手段は `oracle`(`screen` / `db` / `api` / `batch` / `external` / `none`)で明示する。画面表示だけで確認する観点が多い場合、業務結果を見ていない可能性を疑う。
-
-```yaml
-meta:
-  target: 請求書の申請・承認
-  run_mode: process
-viewpoints:
-  - id: VP-01
-    subject: SC-01
-    viewpoint: 必須項目未入力で申請できないこと
-    expected: 申請ボタンが無効。invoices.status が draft のまま
-    derived_from: [同値分割]
-    traces_to: [SC-01]
-    priority: High
-    oracle: db
-    evidence_level: confirmed
-    sources: [basic-design.md#3.2]
-narrative:
-  breakdown: |
-    (セクション1の本文。表でもよい)
-  excluded: |
-    (セクション3の本文)
-  undefined_expected: |
-    (セクション4の本文)
-  coverage: |
-    (セクション5の本文)
-```
+`derivation: proposed` の別表・別節への振り分けはレンダラが機械的に行う。手で分けない。
 
 生成される Markdown は次の形になる(**この形を手で書かない**)。
 

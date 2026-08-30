@@ -81,9 +81,11 @@ WRITE_TOOLS = {
     "replace_string_in_file", "createandrunterminal",
 }
 
-# 成果物ファイル(conventions.md §6)。構造化成果物の .yaml も対象にする
-# — YAMLが正なので、そちらこそスキーマ検証を掛ける意味がある
-_ARTIFACT_RE = re.compile(r"^\d{2}-.+\.(?:md|ya?ml)$")
+# 成果物(conventions.md §6)。生成された Markdown と、構造化成果物の
+# 台帳CSV・notes.md のどちらでも反応する — 台帳が正なので、そちらこそ
+# 検証を掛ける意味がある。ディレクトリの特定は gate_check.py が行う
+_ARTIFACT_RE = re.compile(r"^\d{2}-.+\.md$")
+_LEDGER_RE = re.compile(r"^(?:[a-z_][a-z0-9_]*\.csv|notes\.md)$")
 
 
 # ---------------------------------------------------------------------------
@@ -459,7 +461,8 @@ def action_post_write(payload, args):
     norm = os.path.normpath(target).replace("\\", "/")
     if "/{}/".format(OUTPUT_ROOT) not in norm:
         return 0
-    if not _ARTIFACT_RE.match(os.path.basename(norm)):
+    base = os.path.basename(norm)
+    if not (_ARTIFACT_RE.match(base) or _LEDGER_RE.match(base)):
         return 0
 
     ok, report, _ = run_gate_check(["--files", target])

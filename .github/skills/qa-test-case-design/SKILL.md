@@ -101,40 +101,13 @@ python .github/skills/_shared/scripts/lint_output.py --session-dir <セッショ
 
 ## 出力フォーマット
 
-### 31-test-case
+**この成果物は台帳系なので `31-test-case/` に台帳CSVと notes.md を書く**(conventions.md §6-2)。Markdown は生成物であり、直接書かない。
 
-**この成果物は台帳系なので `31-test-case.yaml` に書く**(conventions.md §6-2)。Markdown は生成物であり、直接書かない。
+1. `31-test-case/<台帳名>.csv` を書く。台帳名・列・必須・許容値の定義元は [_shared/schemas/test-case.yaml](../_shared/schemas/test-case.yaml)
+2. `31-test-case/notes.md` に叙述セクションを書く(成果物と同じ `## <番号>. <タイトル>` の見出し)
+3. `validate_artifact.py 31-test-case` で規約検証 → `render_md.py 31-test-case` で Markdown を生成
 
-1. `31-test-case.yaml` を書く。スキーマは [_shared/schemas/test-case.yaml](../_shared/schemas/test-case.yaml)
-2. `validate_artifact.py` で規約検証 → `render_md.py` で Markdown を生成(コマンドは conventions.md §6-2)
-
-`derivation: proposed` の別表への振り分けはレンダラが行う。手で分けない。
-
-```yaml
-meta:
-  target: 請求書の申請・承認
-  run_mode: process
-cases:
-  - id: TC-01
-    traces_to: [VP-01]
-    title: 必須項目未入力で申請できない
-    precondition: 下書きの請求書が1件ある
-    steps: ["1. 明細を空のまま申請する", "2. 一覧を再表示する"]
-    inputs: [明細=0件]
-    expected: 申請ボタンが無効。invoices.status が draft のまま
-    verify_by: DB
-    priority: High
-    oracle: db
-    evidence_level: confirmed
-    sources: [basic-design.md#3.2]
-narrative:
-  summary: |
-    (セクション1の本文。観点数 → ケース数と削減理由)
-  ordering: |
-    (セクション3の本文)
-  unexpanded: |
-    (セクション4の本文)
-```
+`derivation: proposed` の別表・別節への振り分けはレンダラが機械的に行う。手で分けない。
 
 生成される Markdown は次の形になる(**この形を手で書かない**)。
 

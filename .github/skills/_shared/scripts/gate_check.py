@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 """承認ゲート単位の成果物検証(単一の検証入口)。
 
-`lint_output.py`(書式)と `trace_check.py`(ID突合)を**ゲート単位で束ねる**。
+`lint_output.py`(書式)・`trace_check.py`(ID突合)・`validate_artifact.py`
+(台帳のスキーマ検証)・`render_md.py --check`(Markdownと台帳の一致)を
+**ゲート単位で束ねる**。
 SKILL.md の手順・hooks(`hook_entry.py`)・CI のいずれからも**このスクリプトを
 呼ぶ**ことで、判定基準が3箇所に分裂するのを防ぐ(conventions.md §9)。
 
@@ -56,8 +58,9 @@ import validate_artifact  # noqa: E402
 
 SESSION_FILE = "qa-session.json"
 
-# 構造化成果物(YAMLが正・Markdownは生成物)。conventions.md §6 の命名に従う
-YAML_ARTIFACT_RE = validate_artifact.ARTIFACT_RE
+# 構造化成果物のディレクトリ `<NN>-<名前>/`(台帳CSV + notes.md)。
+# conventions.md §6-2。Markdown はその生成物
+STRUCTURED_DIR_RE = validate_artifact.ARTIFACT_RE
 
 # ---------------------------------------------------------------------------
 # skill-map.md §3: 承認ゲートが束ねる成果物
@@ -159,12 +162,25 @@ def find_artifacts(session_dir):
 
 
 def find_structured(session_dir):
-    """構造化成果物 `NN-*.yaml` を列挙する(まだ無いセッションもある)。"""
+    """構造化成果物のディレクトリを列挙する(まだ無いセッションもある)。"""
     d = Path(session_dir)
     return sorted(
         str(p) for p in d.iterdir()
-        if p.is_file() and YAML_ARTIFACT_RE.match(p.name)
+        if p.is_dir() and STRUCTURED_DIR_RE.match(p.name)
     )
+
+
+def structured_dir_of(path):
+    """パスが構造化成果物に属するなら、そのディレクトリを返す。
+
+    hook からは台帳CSV(`.../30-test-viewpoint/viewpoints.csv`)や notes.md が
+    そのまま渡ってくるので、どちらでも成果物にたどり着けるようにする。
+    """
+    p = Path(path)
+    for cand in ([p] if p.is_dir() else []) + list(p.parents)[:1]:
+        if cand.is_dir() and STRUCTURED_DIR_RE.match(cand.name):
+            return str(cand)
+    return None
 
 
 def select_targets(session_dir, session, gate=None, unapproved=False):
@@ -461,15 +477,20 @@ def main(argv=None):
 
     # --- 個別ファイルモード(PostToolUse 用): 1ファイル単位で見られる検査だけ ---
     if args.files:
-        missing = [p for p in args.files if not os.path.isfile(p)]
+        missing = [p for p in args.files if not os.path.exists(p)]
         if missing:
-            parser.error("ファイルが存在しません: {}".format(", ".join(missing)))
-        md_files = [p for p in args.files if p.lower().endswith(".md")]
-        yaml_files = [p for p in args.files
-                      if YAML_ARTIFACT_RE.match(os.path.basename(p))]
+            parser.error("存在しません: {}".format(", ".join(missing)))
+        structured, md_files = [], []
+        for f in args.files:
+            d = structured_dir_of(f)
+            if d is not None:
+                if d not in structured:
+                    structured.append(d)
+            elif f.lower().endswith(".md"):
+                md_files.append(f)
         lint_results = run_lint(md_files)
-        schema_results = run_schema(yaml_files)
-        render_findings = run_render_check(yaml_files)
+        schema_results = run_schema(structured)
+        render_findings = run_render_check(structured)
         rep = build_report(
             args, None, None, args.files, "指定されたファイル", [],
             lint_results, {"available": False, "note": "個別ファイルモードでは実行しない"},

@@ -20,7 +20,7 @@ qa-improvement が振り返りレポート(90-improvement.md)のセクション2
     5. シナリオ種別カバレッジ 正常・代替・例外・回復・取消の各種別の有無
     6. 業務オラクル保有率   期待結果が画面表示以外の業務結果を検証している割合
 
-指標6は、構造化成果物(conventions.md §6-2 の `.yaml`)があれば `oracle` フィールドから
+指標6は、構造化成果物(conventions.md §6-2 の台帳CSV)があれば `oracle` 列から
 実測する。無い場合はキーワード推定に落ち、そのことが出力に明記される。
 
 表の解析は trace_check.py の実装を共有する(同一ディレクトリに配置されている前提)。
@@ -207,34 +207,28 @@ def measure_scenario_kinds(artifacts):
 def measure_oracles_structured(session_dir):
     """指標6を構造化成果物から**実測**する。
 
-    テストケース・シナリオが `.yaml`(conventions.md §6-2)で書かれている場合、
-    `oracle` は enum のフィールドなので推定が要らない。構造化されていない
-    セッションでは None を返し、呼び出し側がキーワード推定へ落ちる。
+    台帳が CSV(conventions.md §6-2)で書かれている場合、`oracle` は許容値の
+    決まった列なので推定が要らない。構造化されていないセッションでは None を
+    返し、呼び出し側がキーワード推定へ落ちる。
     """
     try:
-        import miniyaml
+        import validate_artifact
     except ImportError:
         return None
-    counts = {}
-    total = 0
-    for path in sorted(Path(session_dir).glob("*.yaml")):
-        name = path.name
-        if not (name[:2].isdigit() and name[2:3] == "-"):
+    counts, total = {}, 0
+    for d in sorted(Path(session_dir).iterdir()):
+        if not d.is_dir() or not validate_artifact.ARTIFACT_RE.match(d.name):
             continue
-        try:
-            data = miniyaml.parse(path.read_text(encoding="utf-8"))
-        except (miniyaml.YamlError, OSError):
-            return None
-        if not isinstance(data, dict):
-            continue
-        for value in data.values():
-            if not isinstance(value, list):
-                continue
-            for rec in value:
-                if not isinstance(rec, dict) or "oracle" not in rec:
+        for csv_path in sorted(d.glob("*.csv")):
+            try:
+                records = validate_artifact.read_table(csv_path)
+            except Exception:
+                return None
+            for rec in records:
+                if "oracle" not in rec:
                     continue
                 total += 1
-                key = str(rec.get("oracle") or "none").strip() or "none"
+                key = (rec.get("oracle") or "none").strip() or "none"
                 counts[key] = counts.get(key, 0) + 1
     if not total:
         return None
@@ -244,7 +238,7 @@ def measure_oracles_structured(session_dir):
         "率": pct(business, total),
         "分子分母": [business, total],
         "内訳": counts,
-        "注記": "構造化成果物の oracle フィールドによる実測(推定ではない)",
+        "注記": "台帳の oracle 列による実測(推定ではない)",
     }
 
 

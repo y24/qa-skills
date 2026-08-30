@@ -1,0 +1,3 @@
+﻿id,actor,story,value,traces_to,sources,derivation,evidence_level
+US-01,ACT-01,起票者として請求書を申請したい,支払を期日までに完了させるため,BG-01;TRN-01,requirements.md#1.1,,
+US-02,ACT-02,承認者として差戻し理由を残したい,再申請の手戻りを減らすため,BG-01,,proposed,

@@ -1,0 +1,2 @@
+﻿traces_to,target,visible_on_screen,verify_by,sources
+TRN-01,会計システム連携,no,連携テーブル invoice_sync,basic-design.md#5

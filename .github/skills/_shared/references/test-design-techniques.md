@@ -94,3 +94,21 @@ qa-test-viewpoint / qa-test-case-design / qa-scenario-design が参照する技�
 ## 7. エラー推測
 
 経験ベースで「ここが壊れていそう」を挙げる技法。根拠なしで使うと単なる山勘になるため、必ず [regression-viewpoint-catalog.md](regression-viewpoint-catalog.md)(過去不具合由来の観点)と組み合わせ、`sources` に過去チケットIDを付けて使う。
+
+## 8. プロダクトカバレッジモデル(SFDIPOT)
+
+技法ではなく**軸別の漏れチェック**。出典: James Bach の Heuristic Test Strategy Model(satisfice.com)。「機能一覧だけ見て観点を出すと、機能以外の6軸を丸ごと見落とす」ことを防ぐ。
+
+| 記号 | 軸 | 見るもの |
+|---|---|---|
+| S | 構造(Structure) | ファイル、DB、設定、API、モジュール、UI要素、サードパーティ製品 |
+| F | 機能(Function) | 機能・操作・トランザクション。ハッピーパスと各機能の際(きわ) |
+| D | データ(Data) | 入力・出力・保存・変換。型、範囲、形式、エンコード、破損 |
+| I | インターフェース(Interfaces) | 外部との接点: API、DB、ファイルシステム、外部サービス、ブラウザ、OS |
+| P | プラットフォーム(Platform) | 動作環境: OS、ブラウザ、解像度、ロケール、コンテナ、インフラ |
+| O | 運用(Operations) | 実際の使われ方: 業務フロー、中断、同時利用、管理者操作、バッチ・定期ジョブ |
+| T | 時間(Time) | タイムアウト、セッション期限、締め・期跨ぎ、うるう年、DST、競合状態、順序 |
+
+**使い方**: 観点を出し終えたら7軸に振り分け、観点がゼロの軸がないか確認する。ゼロの軸は「対象外の理由」を書く(暗黙に落とさない)。
+
+非機能特性の網羅は [quality-characteristics.md](quality-characteristics.md) が正。SFDIPOT は「どんな性質を確認するか」ではなく「プロダクトのどこを見るか」の軸であり、両者は直交する。

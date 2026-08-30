@@ -9,11 +9,12 @@ description: 業務シナリオ・仕様・根拠抽出・不具合分析の結�
 
 ## 実行前に読むこと
 
+**Quick モードでは最初の2つだけ読む**(網羅を主張しないモードに網羅の手続きを課さない — skill-map.md §2)。
+
 - [_shared/conventions.md](../_shared/conventions.md)
-- [_shared/references/test-design-techniques.md](../_shared/references/test-design-techniques.md)(技法の選択基準)
+- [_shared/references/test-design-techniques.md](../_shared/references/test-design-techniques.md)(技法の選択基準。SFDIPOT の軸別チェックもここ)
 - [_shared/references/quality-characteristics.md](../_shared/references/quality-characteristics.md)(非機能観点)
 - [_shared/references/regression-viewpoint-catalog.md](../_shared/references/regression-viewpoint-catalog.md)(過去不具合由来の観点)
-- [_shared/references/product-coverage-model.md](../_shared/references/product-coverage-model.md)(SFDIPOT: 軸別の漏れチェック)
 - 前段の成果物: シナリオ(`11`)、テスト戦略(`20`)、根拠抽出(`00`)、不具合分析(`01`)、仕様レビュー(`40`)、QAコードレビュー(`41`)のうちあるものすべて
 
 ## 手順
@@ -57,12 +58,10 @@ Quick モードでは、**入力に書かれていない業務知識・状態・
   - 再実行・二重送信・中断からの再開
   - 画面/帳票/エクスポート間の整合
   - 既存機能への回帰(今回変更していないが影響を受ける機能)
-- **SFDIPOT 7軸**(構造/機能/データ/インターフェース/プラットフォーム/運用/時間)に観点一覧を振り分け、観点ゼロの軸がないか確認する。ゼロの軸は対象外の理由を書く(暗黙に落とさない)
-- **機械確認**: 成果物を書き出したら次を実行し、導出元の欠落・品質基準の対応漏れ・シナリオの未反映を機械検出する(検出への対応判断はAIと人間 — conventions.md §9)
+- **SFDIPOT 7軸**(構造/機能/データ/インターフェース/プラットフォーム/運用/時間。test-design-techniques.md §8)に観点一覧を振り分け、観点ゼロの軸がないか確認する。ゼロの軸は対象外の理由を書く(暗黙に落とさない)
+- **機械確認**: `python .github/skills/_shared/scripts/trace_check.py <セッションディレクトリ>` で導出元の欠落・品質基準の対応漏れ・シナリオの未反映を検出する(対応判断はAIと人間 — conventions.md §9)
 
-```
-python .github/skills/_shared/scripts/trace_check.py <セッションディレクトリ>
-```
+**Quick モードでは SFDIPOT と機械確認を省略してよい**(セクション5も「Quick のため未算出」の1行でよい)。
 
 ### 7. 優先度付け
 

@@ -25,11 +25,11 @@ _shared/skill-map.md §1 が定義元。本スクリプトの対応表はそれ�
     3. evidence_level     分析・レビュー系成果物で、evidence_level 列の空セルが
                           ないか、文書中に evidence_level への言及があるか
                           (conventions.md §5-1)。
-   3b. derivation        上流モデル系成果物で、導出区分(explicit / inferred /
-                          proposed)が付いているか(conventions.md §5-2)。
-                          AIが資料外から補った項目を事実と混ぜないための検査。
+   3b. derivation        導出区分の値が規約内か(conventions.md §5-2)。
+                          explicit は既定なので空欄でよい。inferred / proposed が
+                          1件も無い成果物には確認を促す警告を出す。
     4. ID書式             QC-ID は `QC-[A-Z]+-\\d+`、AMB-ID は `AMB-\\d+` 形式か。
-                          ACT/BG/OBJ/STT/TRN/US/SC/VP/TC は `<接頭辞>-<番号>` 形式か
+                          ACT/BG/STT/TRN/HO/US/SC/VP/TC は `<接頭辞>-<番号>` 形式か
                           (conventions.md §6-1。誤検出があり得るため警告)。
                           表のID列(ヘッダが「ID」の列)内の重複がないか。
     5. 曖昧語             期待結果・判定基準の列に「正しく」「適切に」等の
@@ -143,8 +143,7 @@ SECTION_SPECS = {
             (6, "後続影響", ("後続影響", "downstream"), True),
             (7, "ユーザーストーリー", ("ストーリー",), True),
             (8, "確認が必要な事項", ("確認が必要",), True),
-            (9, "モデルのカバレッジ自己チェック", ("カバレッジ",), True),
-            (10, "不足情報", ("不足情報",), True),
+            (9, "不足情報", ("不足情報",), True),
         ],
     },
     # 出典: qa-scenario-design/SKILL.md
@@ -221,7 +220,8 @@ SECTION_SPECS = {
             (2, "テスト観点一覧", ("テスト観点一覧", "観点一覧"), True),
             (3, "対象外とした観点とその理由", ("対象外",), True),
             (4, "期待結果が定義できなかった観点", ("定義できなかった",), True),
-            (5, "カバレッジ確認結果", ("カバレッジ",), True),
+            # 5 は Quick モードで省略できるため必須にしない(skill-map.md §2)
+            (5, "カバレッジ確認結果", ("カバレッジ",), False),
         ],
     },
     # 出典: qa-test-case-design/SKILL.md「出力フォーマット(31-test-case.md)」
@@ -345,8 +345,8 @@ AMB_ID_FINDER = re.compile(r"AMB-[0-9A-Za-z_\-]+")
 AMB_ID_VALID = re.compile(r"AMB-\d+$")
 # conventions.md §6-1: 意図モデル〜テストケースの ID 体系
 # SC は長いシナリオのチェックポイント(SC-03.1)を許容する
-MODEL_ID_FINDER = re.compile(r"\b(?:ACT|BG|OBJ|STT|TRN|HO|US|SC|VP|TC)-[0-9A-Za-z_.\-]+")
-MODEL_ID_VALID = re.compile(r"(?:ACT|BG|OBJ|STT|TRN|HO|US|SC|VP|TC)-\d+(?:\.\d+)?$")
+MODEL_ID_FINDER = re.compile(r"\b(?:ACT|BG|STT|TRN|HO|US|SC|VP|TC)-[0-9A-Za-z_.\-]+")
+MODEL_ID_VALID = re.compile(r"(?:ACT|BG|STT|TRN|HO|US|SC|VP|TC)-\d+(?:\.\d+)?$")
 FILENAME_RE = re.compile(r"^(\d{2})-([0-9a-z][0-9a-z\-]*)\.md$")
 SESSION_FILE_RE = re.compile(r"^\d{2}-.+\.md$")
 
@@ -667,9 +667,10 @@ def check_derivation(result, artifact_type, text, tables):
         return
     if "derivation" not in text and not any(v in text for v in DERIVATION_VALUES):
         result.add(
-            "ERROR", None, "derivation",
-            "この成果物種別は導出区分が必須ですが derivation への言及がありません"
-            "(conventions.md §5-2: explicit / inferred / proposed)",
+            "WARN", None, "derivation",
+            "導出区分の記載が1件もありません"
+            "(すべて資料に明記された事実か確認。推定・提案があれば"
+            " conventions.md §5-2 に従って inferred / proposed を付ける)",
         )
         return
     for table in tables:
@@ -685,12 +686,8 @@ def check_derivation(result, artifact_type, text, tables):
                 continue
             value = cells[col].strip() if col < len(cells) else ""
             if not value or value in ("-", "—", "ー"):
-                result.add(
-                    "ERROR", lineno, "derivation",
-                    "derivation 列が空です"
-                    "(explicit / inferred / proposed のいずれかを付与)",
-                )
-            elif not any(v in norm_text(value) for v in DERIVATION_VALUES):
+                continue  # 空欄 = explicit(conventions.md §5-2 の既定)
+            if not any(v in norm_text(value) for v in DERIVATION_VALUES):
                 result.add(
                     "WARN", lineno, "derivation",
                     "derivation の値が規約外です: 「%s」"

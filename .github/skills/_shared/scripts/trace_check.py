@@ -32,7 +32,7 @@ ID体系は conventions.md §6-1、成果物の対応関係は _shared/skill-map
     6. ID重複             : 観点一覧・テストケース各表内のID重複
     7. シナリオ参照の整合 : 観点一覧の traces_to が指す SC-NN がシナリオに実在するか
     8. 未反映シナリオ     : どの観点からも参照されないシナリオ(情報提供のみ)
-    9. 意図モデル参照整合 : シナリオの traces_to が指す ACT/BG/OBJ/STT/TRN/US が
+    9. 意図モデル参照整合 : シナリオの traces_to が指す ACT/BG/STT/TRN/HO/US が
                             意図モデルに実在するか
 
 exit code:
@@ -177,7 +177,7 @@ def extract_testcase_rows(text):
     return rows_out
 
 
-_MODEL_PREFIXES = ("ACT", "BG", "OBJ", "STT", "TRN", "HO", "US")
+_MODEL_PREFIXES = ("ACT", "BG", "STT", "TRN", "HO", "US")
 
 
 def extract_defined_ids(text, prefixes):

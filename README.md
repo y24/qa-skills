@@ -40,7 +40,6 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
       quality-characteristics.md
       spec-ambiguity-checklist.md
       test-oracles.md                   # テストオラクル(FEW HICCUPPS)
-      product-coverage-model.md         # プロダクトカバレッジモデル(SFDIPOT)
       defect-taxonomy.md
       regression-viewpoint-catalog.md   # ★過去不具合→回帰観点の蓄積場所
       review-checklist.md               # ★自分のレビュー観点の蓄積場所
@@ -54,7 +53,9 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
       lint_output.py        # 成果物の書式・evidence_level・derivation・ID書式チェック
       metrics.py            # 指標算出(根拠参照率・トレース率・カバレッジ)
 
-.github/agents/             # GitHub Copilot 用アダプター層(スキルと1対1・フラット配置)
+.github/agents/             # GitHub Copilot 用アダプター層(2ファイルのみ)
+  qa-orchestrator.agent.md  # 統括役
+  qa-skill-runner.agent.md  # 全スキル共通の汎用ランナー
 ```
 
 ## 設計原則
@@ -68,9 +69,10 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
    必須質問を先に、「すべて推奨で進める」のファストパスを常設。
 4. **ゲートは意味が変わる地点に** — 成果物ごとの逐一承認ではなく、G1〜G5 の5ゲート。
    承認の形骸化を防ぐ。成果物の責任は人間が持つ。
-5. **証拠レベル × 導出区分** — 全項目に confirmed/likely/hypothesis(確信度)と
-   explicit/inferred/proposed(出所)の**直交する2軸**を付ける。
-   **AIが資料外から補った項目(proposed)を資料由来の事実と混ぜない。**
+5. **証拠レベル × 導出区分** — confirmed/likely/hypothesis(確信度)と
+   explicit/inferred/proposed(出所)の**直交する2軸**。導出区分は explicit が既定で、
+   **推定(inferred)と提案(proposed)にだけ印を付ける**。
+   **AIが資料外から補った項目を資料由来の事実と混ぜない。**
 6. **ストーリーは正本ではない** — 正本は業務プロセスモデル(Actor・状態・遷移・
    引き継ぎ)。ストーリーはそのビュー。ストーリーは情報を圧縮するため、
    複数ロールの業務を保持できない。
@@ -137,14 +139,20 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
 ### GitHub Copilot カスタムエージェント層(.github/agents/)
 
 `.github/skills/` の SKILL.md 群を GitHub Copilot のカスタムエージェント +
-`#tool:agent/runSubagent` で動かすためのアダプター層。
+`#tool:agent/runSubagent` で動かすためのアダプター層。**ファイルは2枚だけ**で、
+スキルが増減しても変更されない。
 
-- **手順の本体はあくまで `.github/skills/<名前>/SKILL.md`**。`*.agent.md` は
-  「フロントマター(description/tools)+ SKILL.md への参照 + Copilot 固有の
-  呼び出し方」だけを持つ薄いラッパー。手順を変えるときは SKILL.md 側を直す。
+- `qa-orchestrator.agent.md` — 統括役。ユーザーとの対話・ゲート・セッション管理を担う
+- `qa-skill-runner.agent.md` — 全スキル共通の汎用ランナー。入力JSONの `skill` が指す
+  SKILL.md を読んで実行する。**スキルごとの agent 定義は持たない**(description の
+  二重管理が発生しないため)
+- **手順の本体はあくまで `.github/skills/<名前>/SKILL.md`**。手順を変えるときは
+  SKILL.md 側だけを直す。
 - サブエージェントの入出力契約は
   [_shared/subagent-contract.md](.github/skills/_shared/subagent-contract.md)
   にある(ツール非依存。Claude Code の Agent ツールでも同じ契約を使う)。
+- 個別スキルを直接使いたいときは、`.github/skills/` が Copilot の Agent Skills 公式
+  配置なので、スキル名で直接呼べる(agent 定義は不要)。
 
 **必要環境**: VS Code + GitHub Copilot **v1.107 以降**、および
 `settings.json` に `"chat.customAgentInSubagent.enabled": true`

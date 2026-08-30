@@ -10,7 +10,7 @@
 
 | ツール | 起動方法 |
 |---|---|
-| GitHub Copilot | `#tool:agent/runSubagent`(`.github/agents/*.agent.md` 経由。要 VS Code v1.107+) |
+| GitHub Copilot | `#tool:agent/runSubagent` で `qa-skill-runner` を呼ぶ(要 VS Code v1.107+)。実行するスキルは `skill` フィールドで指示する |
 | Claude Code | Agent ツール(サブエージェント) |
 | その他・分離なし | オーケストレーター自身が SKILL.md を読んで実行(契約は無視してよい) |
 
@@ -38,7 +38,7 @@
 | `mode` | 常に `"subagent"`。これが含まれる入力を受けたらサブエージェントモードで動く |
 | `run_mode` | `"quick"` / `"grounded"` / `"process"`(skill-map.md §2)。成果物に明記する限界の判断に使う |
 | `session_dir` | 成果物の出力先ディレクトリ |
-| `skill` | 実行するスキル名。手順の本体は `.github/skills/<skill>/SKILL.md` |
+| `skill` | **実行するスキル名。ランナーはこの値で `.github/skills/<skill>/SKILL.md` を特定する**(必須) |
 | `artifact` | 書き出す成果物ファイル名(conventions.md §6 の命名) |
 | `inputs` | 読み込むべきインプット資料と前段成果物のパス一覧(バケツリレー)。Markdown変換済みの資料(qa-session.json の `converted_path`)は原本ではなく変換後パスを渡す |
 | `answers` | 前回返した `pending_questions` に対するユーザー回答(`{ "q1": "選択肢..." }`) |

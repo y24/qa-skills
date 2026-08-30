@@ -12,7 +12,7 @@ QAスキル群のワークフローのうち、**入出力が決まっていて�
 
 | スクリプト | 用途 | 利用箇所 |
 |---|---|---|
-| [qa_session.py](qa_session.py) | qa-session.json の作成・更新・再開判定。タイムスタンプ付与・status検証・アトミック書き込みを保証 | qa-orchestrator(全ステップ・ゲート境界) |
+| [qa_session.py](qa_session.py) | qa-session.json の作成・更新・再開判定。インプット・ステップは一括投入(`--item` / `--steps`) | qa-orchestrator(計画作成時・完了時・ゲート通過時) |
 | [defect_stats.py](defect_stats.py) | `normalize`: 不具合CSV→ラベル雛形YAML生成 / `stats`: ラベル付け後の4軸分布・クロス集計 | qa-defect-analysis 手順1・3 |
 | [pairwise.py](pairwise.py) | ペアワイズ(全ペア網羅)組み合わせ生成。決定論的・生成後に自己検証。禁止ペア制約対応 | qa-test-case-design 手順2 |
 | [trace_check.py](trace_check.py) | 成果物間のID突合: 意図モデル⇄シナリオ⇄観点⇄ケースの孤児参照、導出元欠落、未確認QC基準、AMB参照切れ、ID重複 | qa-intent-recovery / qa-scenario-design / qa-test-viewpoint / qa-test-case-design / qa-test-design-review |
@@ -27,7 +27,9 @@ QAスキル群のワークフローのうち、**入出力が決まっていて�
 # セッション管理(qa-orchestrator)
 python .github/skills/_shared/scripts/qa_session.py resume-info qa-output
 python .github/skills/_shared/scripts/qa_session.py init qa-output/my-session --name my-session --feature "請求書の申請・承認" --run-mode process
-python .github/skills/_shared/scripts/qa_session.py add-phase qa-output/my-session --order 1 --skill qa-source-analysis --gate G2
+# インプットとステップは一括投入する(1件ずつ呼ばない)
+python .github/skills/_shared/scripts/qa_session.py add-input qa-output/my-session --item "spec:docs/design.md:基本設計書" --item "code:src/:対象コード"
+python .github/skills/_shared/scripts/qa_session.py add-phase qa-output/my-session --steps qa-source-analysis:G2 --steps qa-intent-recovery:G3 --steps qa-test-viewpoint:G4
 python .github/skills/_shared/scripts/qa_session.py set-status qa-output/my-session 1 approved --output 00-source-analysis.md
 python .github/skills/_shared/scripts/qa_session.py set-gate qa-output/my-session G2 approved
 

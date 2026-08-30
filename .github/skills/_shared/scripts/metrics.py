@@ -14,7 +14,7 @@ qa-improvement が振り返りレポート(90-improvement.md)のセクション2
 
 算出する指標:
     1. 根拠参照率           出典列を持つ表の行のうち、出典が埋まっている割合
-    2. 根拠なし事実主張率   derivation:explicit なのに出典が空の割合(目標 0%)
+    2. 根拠なし事実主張率   explicit(derivation 空欄を含む)なのに出典が空の割合(目標 0%)
     3. トレース率           traces_to の参照のうち、上流に実在するIDを指す割合
     4. モデルカバレッジ     意図モデルの ACT/STT/TRN/HO のうちシナリオが触れた割合
     5. シナリオ種別カバレッジ 正常・代替・例外・回復・取消の各種別の有無
@@ -105,9 +105,9 @@ def measure_evidence(artifacts):
                 has_source = cell_at(row, src_col) not in _EMPTY_VALUES
                 if has_source:
                     rows_with_source += 1
-                if der_col is None:
-                    continue
-                if "explicit" not in clean_cell(cell_at(row, der_col)).lower():
+                # conventions.md §5-2: derivation の空欄は explicit(既定)
+                der = clean_cell(cell_at(row, der_col)).lower() if der_col is not None else ""
+                if der in ("inferred", "proposed"):
                     continue
                 explicit_total += 1
                 if not has_source:
@@ -118,7 +118,7 @@ def measure_evidence(artifacts):
                         "detail": (
                             f"{path.name}: "
                             f"{cell_at(row, id_col) if id_col is not None else '(ID不明)'}"
-                            "(derivation: explicit だが出典が空)"
+                            "(explicit(=空欄)だが出典が空)"
                         ),
                     })
     return {

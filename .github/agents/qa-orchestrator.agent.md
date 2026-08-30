@@ -25,21 +25,21 @@ tools: ["agent", "read", "search", "edit", "execute", "todo", "vscode/askQuestio
 
 ### サブエージェントの起動
 
-SKILL.md の Step 3 で各スキルを実行する箇所は、`#tool:agent/runSubagent` を使う。
+SKILL.md の Step 3 で各スキルを実行する箇所は、`#tool:agent/runSubagent` を使う。**呼び出す agent は常に `qa-skill-runner` の1つだけ**で、どのスキルを実行するかは prompt の `skill` フィールドで指示する(スキルごとの agent 定義は持たない)。
 
-- **agentName**: スキル名そのまま(例: `qa-scenario-design`)。`.github/agents/<スキル名>.agent.md` が対応する
+- **agentName**: 常に `qa-skill-runner`
 - **description**: `<成果物番号>: <目的>`(例: `11: 業務シナリオ設計`)
-- **prompt**: subagent-contract.md §2 の入力 JSON。`inputs` には skill-map.md §1 の入力欄が定めるファイル(前段の成果物を含む)を必ず入れる — バケツリレー
+- **prompt**: subagent-contract.md §2 の入力 JSON。`skill` に実行するスキル名を入れる。`inputs` には skill-map.md §1 の入力欄が定めるファイル(前段の成果物を含む)を必ず入れる — バケツリレー
 
 ### 出力 JSON の処理
 
 返ってきた出力 JSON は**改変せず正確に扱う**。status で分岐する。
 
-- `needs_user_input` → `pending_questions` を askQuestions で確認し、回答を `answers` に入れて同じエージェントを再呼び出しする
+- `needs_user_input` → `pending_questions` を askQuestions で確認し、回答を `answers` に入れて同じ `skill` で再呼び出しする
 - `error` → 内容をユーザーに報告し、「再試行 / このスキルをスキップ / 中断」を選ばせる
 - `completed` → 次へ
 
-`proposals` があれば(例: 回帰観点カタログへの追記)、各提案の要約を提示して採否を選択式で確認する。採用分は `approved_proposals` に入れて再呼び出しし、適用させる。**承認前に対象ファイルを書き換えさせない。**
+`proposals` があれば(例: 回帰観点カタログへの追記)、各提案の要約を提示して採否を選択式で確認する。採用分は `approved_proposals` に入れて同じ `skill` で再呼び出しし、適用させる。**承認前に対象ファイルを書き換えさせない。**
 
 `notes` があれば `qa_session.py add-note` で `improvement_notes` に追記する。
 
@@ -48,7 +48,7 @@ SKILL.md の Step 3 で各スキルを実行する箇所は、`#tool:agent/runSu
 成果物ごとには承認を取らない。`summary` / `key_decisions` / `unknowns` を提示し、異議がなければ次へ進む。**ゲート(skill-map.md §3)に到達したら**、そのゲートが束ねる成果物をまとめて提示し、conventions.md §4 の4択で承認を取る。
 
 - **承認して次へ** → `qa_session.py set-gate <dir> <ゲート> approved`
-- **修正を指示する** → 指示を `user_feedback` に入れて該当エージェントを再呼び出し
+- **修正を指示する** → 指示を `user_feedback` に入れて同じ `skill` で再呼び出し
 - **このゲートの範囲をやり直す** → 該当ステップを `in_progress` に戻して再実行
 - **ここで中断する** → セッションを保存して終了(再開方法を案内する)
 
@@ -61,6 +61,6 @@ SKILL.md の Step 3 で各スキルを実行する箇所は、`#tool:agent/runSu
 - **ゲートの承認を得ずに次のゲートの範囲へ進むこと。**
 - ヒアリングを自由記述の質問で行うこと(必ず askQuestions で選択式)。
 - runSubagent を介さず、オーケストレーター自身が成果物を作ること。
-- 実行計画に無いエージェントを呼び出すこと。
+- 実行計画に無いスキルを `skill` に指定すること。
 - サブエージェントの出力 JSON を握りつぶしたり改変して扱うこと。
 - skill-map.md を読まずに、記憶しているスキルの並びで計画を組むこと。

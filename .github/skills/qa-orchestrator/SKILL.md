@@ -66,14 +66,18 @@ skill-map.md から計画を組む。**手順を暗記せず、毎回ファイ�
 
 これが **G1(スコープ)ゲート**。承認を得てからセッションを作成する。
 
+**セッションの作成は4コマンドで済ませる**(1件ずつ呼ばない)。
+
 ```
 python .github/skills/_shared/scripts/qa_session.py init qa-output/<名前> --name <名前> --feature "<対象>" --run-mode <quick|grounded|process>
-python .github/skills/_shared/scripts/qa_session.py add-input qa-output/<名前> --type <種別> --path <パス> --note "<メモ>"
-python .github/skills/_shared/scripts/qa_session.py add-phase qa-output/<名前> --order <N> --skill <スキル名> --gate <G2..G5>
+python .github/skills/_shared/scripts/qa_session.py add-input qa-output/<名前> --item "<種別>:<パス>:<メモ>" --item "..."
+python .github/skills/_shared/scripts/qa_session.py add-phase qa-output/<名前> --steps <スキル名>:<ゲート> --steps <スキル名>:<ゲート>:<対象>
 python .github/skills/_shared/scripts/qa_session.py set-gate qa-output/<名前> G1 approved
 ```
 
-スキップするスキルも `--status skipped` で登録する(何を意図的にやらなかったかの記録になる)。
+スキップするスキルも `--steps <スキル名>:<ゲート>::skipped` で登録する(何を意図的にやらなかったかの記録になる)。
+
+**Quick モードではセッションファイルを作らなくてよい**(skill-map.md §2)。単発の初稿づくりに簿記は要らない。
 
 Excel・PDF など直接読みにくい形式の資料が含まれる場合は、[_shared/source-conversion.md](../_shared/source-conversion.md) を読み、ここで markitdown により `sources/` へ変換して `add-input --converted` に変換後パスを記録する。以降のステップには変換後パスを渡す。
 
@@ -81,14 +85,13 @@ Excel・PDF など直接読みにくい形式の資料が含まれる場合は�
 
 各ステップについて:
 
-1. `qa_session.py set-status <dir> <order> in_progress` で更新する
-2. 該当スキルを実行する。前段の成果物を必ずインプットに含める(**バケツリレー**)。読むべき成果物は skill-map.md §1 の入力欄が定める
+1. 該当スキルを実行する。前段の成果物を必ずインプットに含める(**バケツリレー**)。読むべき成果物は skill-map.md §1 の入力欄が定める
    - **コンテキスト分離する場合**: [subagent-contract.md](../_shared/subagent-contract.md) の入力JSONで起動し、返ってきた出力JSONの `pending_questions` / `proposals` を親であるこのスキルが処理する
    - **分離しない場合**: 該当スキルの SKILL.md を読み込み、その手順に従って実行する
-3. 成果物を書き出し、`lint_output.py` で書式チェックして ERROR を解消する
-4. **要約(全文ではない)+ 重要な判断ポイント + 残った不明点**を提示する。ここでは承認を取らず、異議がなければ次へ進む
-5. `qa_session.py set-status <dir> <order> approved --output <ファイル名>` で更新する
-6. 実行中に気づいたスキル自体の問題は `qa_session.py add-note` で追記する
+2. 成果物を書き出し、`lint_output.py` で書式チェックして ERROR を解消する
+3. **要約(全文ではない)+ 重要な判断ポイント + 残った不明点**を提示する。ここでは承認を取らず、異議がなければ次へ進む
+4. `qa_session.py set-status <dir> <order> approved --output <ファイル名>` で更新する(**完了時のみ。開始時の更新はしない** — 再開位置は未完了の最小 order で決まる)
+5. 実行中に気づいたスキル自体の問題は `qa_session.py add-note` で追記する
 
 **ゲートに到達したら**(そのゲートに属する全ステップが終わったら):
 

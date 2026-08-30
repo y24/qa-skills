@@ -12,16 +12,13 @@ LLMの「読み込み→修正→全体書き戻し」の代わりに行う。�
     python qa_session.py init qa-output/invoice-export --name invoice-export \\
         --feature "請求書エクスポート機能" --description "CSV/PDF出力の新規追加" \\
         --run-mode process
-    python qa_session.py add-input qa-output/invoice-export --type spec \\
-        --path docs/spec.xlsx --note "仕様書 v2" \\
-        --converted qa-output/invoice-export/sources/spec.xlsx.md
-    python qa_session.py add-phase qa-output/invoice-export --order 1 \\
-        --skill qa-defect-analysis --gate G2
-    python qa_session.py add-phase qa-output/invoice-export --order 4 \\
-        --skill qa-spec-review --gate G2 --target requirements
-    python qa_session.py set-status qa-output/invoice-export 1 in_progress
+    python qa_session.py add-input qa-output/invoice-export \\
+        --item "spec:docs/design.md:基本設計書" --item "code:src/invoice/:対象コード"
+    python qa_session.py add-phase qa-output/invoice-export \\
+        --steps qa-source-analysis:G2 --steps qa-defect-analysis:G2 \\
+        --steps qa-spec-review:G2:requirements --steps qa-test-viewpoint:G4
     python qa_session.py set-status qa-output/invoice-export 1 approved \\
-        --output 01-defect-analysis.md
+        --output 00-source-analysis.md
     python qa_session.py set-gate qa-output/invoice-export G2 approved
     python qa_session.py add-decision qa-output/invoice-export --phase 1 \\
         --decision "軽微な表記ゆれ不具合は分析対象から除外"
@@ -159,42 +156,81 @@ def cmd_init(args):
     print("セッションを作成しました: {}".format(path))
 
 
+def _parse_item(spec, field_count, label):
+    """`a:b:c` 形式の一括指定を分解する(不足分は空文字で埋める)。"""
+    parts = spec.split(":", field_count - 1)
+    if len(parts) < 1 or not parts[0].strip():
+        _fail("{}の書式が不正です: {}".format(label, spec))
+    parts += [""] * (field_count - len(parts))
+    return [x.strip() for x in parts]
+
+
 def cmd_add_input(args):
     session = _load(args.dir)
-    entry = {"type": args.type, "path": args.path, "note": args.note or ""}
-    if args.converted:
-        entry["converted_path"] = args.converted
-    session.setdefault("inputs", []).append(entry)
+    inputs = session.setdefault("inputs", [])
+    added = 0
+    for spec in args.item or []:
+        # 種別:パス[:メモ[:変換後パス]]
+        kind, path, note, converted = _parse_item(spec, 4, "--item")
+        if not path:
+            _fail("--item にパスがありません: {}".format(spec))
+        entry = {"type": kind, "path": path, "note": note}
+        if converted:
+            entry["converted_path"] = converted
+        inputs.append(entry)
+        added += 1
+    if args.type and args.path:
+        entry = {"type": args.type, "path": args.path, "note": args.note or ""}
+        if args.converted:
+            entry["converted_path"] = args.converted
+        inputs.append(entry)
+        added += 1
+    if added == 0:
+        _fail("--item または --type/--path のいずれかを指定してください")
     _save(args.dir, session)
-    print("インプットを追加しました: type={} path={}".format(args.type, args.path))
+    print("インプットを {} 件追加しました".format(added))
 
 
 def cmd_add_phase(args):
-    if args.status not in VALID_STATUSES:
-        _fail(
-            "不正な status です: {} (許可: {})".format(
-                args.status, " / ".join(VALID_STATUSES)
-            )
-        )
-    if args.gate is not None and args.gate not in VALID_GATES:
-        _fail(
-            "不正な gate です: {} (許可: {})".format(args.gate, " / ".join(VALID_GATES))
-        )
     session = _load(args.dir)
-    if _find_phase(session, args.order) is not None:
-        _fail("order={} のステップは既に存在します".format(args.order))
-    phase = {"order": args.order, "skill": args.skill}
-    if args.target:
-        phase["target"] = args.target
-    if args.gate is not None:
-        phase["gate"] = args.gate
-    phase["status"] = args.status
-    phase["output"] = None
     plan = session.setdefault("plan", [])
-    plan.append(phase)
+    next_order = max((p.get("order", 0) for p in plan), default=0) + 1
+
+    def _append(order, skill, gate, target, status):
+        if _find_phase(session, order) is not None:
+            _fail("order={} のステップは既に存在します".format(order))
+        if status not in VALID_STATUSES:
+            _fail("不正な status です: {} (許可: {})".format(
+                status, " / ".join(VALID_STATUSES)))
+        if gate and gate not in VALID_GATES:
+            _fail("不正な gate です: {} (許可: {})".format(
+                gate, " / ".join(VALID_GATES)))
+        entry = {"order": order, "skill": skill}
+        if target:
+            entry["target"] = target
+        if gate:
+            entry["gate"] = gate
+        entry["status"] = status
+        entry["output"] = None
+        plan.append(entry)
+
+    added = 0
+    for spec in args.steps or []:
+        # スキル名[:ゲート[:対象ラベル[:status]]]。order は指定順に自動採番
+        skill, gate, target, status = _parse_item(spec, 4, "--steps")
+        _append(next_order, skill, gate, target, status or "pending")
+        next_order += 1
+        added += 1
+    if args.skill:
+        order = args.order if args.order is not None else next_order
+        _append(order, args.skill, args.gate or "", args.target, args.status)
+        added += 1
+    if added == 0:
+        _fail("--steps または --skill のいずれかを指定してください")
+
     plan.sort(key=lambda p: p.get("order", 0))
     _save(args.dir, session)
-    print("ステップを追加しました: order={} skill={}".format(args.order, args.skill))
+    print("ステップを {} 件追加しました".format(added))
 
 
 def cmd_set_status(args):
@@ -425,9 +461,11 @@ def build_parser():
 
     p = sub.add_parser("add-input", help="inputs にインプット資料を追記する")
     p.add_argument("dir", help="セッションディレクトリ")
-    p.add_argument("--type", required=True,
+    p.add_argument("--item", action="append", metavar="種別:パス[:メモ[:変換後パス]]",
+                   help="一括指定(複数回指定可。推奨)")
+    p.add_argument("--type", default="",
                    help="資料種別(spec/plan/defects/pr/code/criteria 等)")
-    p.add_argument("--path", required=True, help="資料のパスまたはURL")
+    p.add_argument("--path", default="", help="資料のパスまたはURL")
     p.add_argument("--note", default="", help="補足メモ")
     p.add_argument("--converted", default="",
                    help="Markdown変換済みファイルのパス(_shared/source-conversion.md)")
@@ -435,8 +473,12 @@ def build_parser():
 
     p = sub.add_parser("add-phase", help="plan に実行ステップを追記する")
     p.add_argument("dir", help="セッションディレクトリ")
-    p.add_argument("--order", required=True, type=int, help="実行順(重複不可)")
-    p.add_argument("--skill", required=True, help="スキル名(例: qa-defect-analysis)")
+    p.add_argument("--steps", action="append",
+                   metavar="スキル名[:ゲート[:対象[:status]]]",
+                   help="一括指定(複数回指定可。order は指定順に自動採番。推奨)")
+    p.add_argument("--order", type=int, default=None,
+                   help="実行順(単体指定時。省略時は末尾)")
+    p.add_argument("--skill", default="", help="スキル名(例: qa-defect-analysis)")
     p.add_argument("--target", default="",
                    help="対象ラベル(成果物名の接尾辞。例: requirements)")
     p.add_argument("--gate", default=None,

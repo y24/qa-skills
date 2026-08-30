@@ -115,10 +115,7 @@ sources:                    # 根拠(チケットID、ファイルパス、仕�
 |---|---|---|
 | `ACT-NN` | Actor・ロール | qa-intent-recovery |
 | `BG-NN` | 業務ゴール | qa-intent-recovery |
-| `STT-NN` | 状態(どのオブジェクトの状態かは列で持つ) | qa-intent-recovery |
-| `TRN-NN` | 状態遷移 | qa-intent-recovery |
-| `HO-NN` | ロール間の引き継ぎ | qa-intent-recovery |
-| `US-NN` | ユーザーストーリー | qa-intent-recovery |
+| `TRN-NN` | 状態遷移(**状態と引き継ぎはこの遷移から導出・派生する**) | qa-intent-recovery |
 | `SC-NN` | 業務シナリオ | qa-scenario-design |
 | `VP-NN` | テスト観点 | qa-test-viewpoint |
 | `TC-NN` | テストケース | qa-test-case-design |
@@ -126,11 +123,22 @@ sources:                    # 根拠(チケットID、ファイルパス、仕�
 | `AMB-NNN` | 曖昧性検出項目 | qa-spec-review / qa-test-design-review |
 | `BUG-xxxx` | 不具合チケット | (外部。qa-defect-analysis が参照) |
 
+状態・引き継ぎ・ユーザーストーリーは独立したIDを持たない。状態は遷移の起点・終点として、引き継ぎは遷移の属性(引き継ぎ先が決まっている遷移)として、ストーリーは業務ゴールのビューとして表す。**測るのは遷移カバレッジ**で、これが状態カバレッジを含む。
+
 各項目には**由来を指す `traces_to`(上流のID)を必ず持たせる**。上流を書けない項目は §5-2 の `derivation: proposed` に該当する。
 
 ### 6-2. 台帳系の成果物(台帳はCSV、Markdownは生成物)
 
-ID・`traces_to`・`derivation`・`sources` を持つ**台帳**は、機械が突合する対象そのものなので表として持つ。`_shared/schemas/<名前>.yaml` にスキーマがある成果物がこれにあたる。
+**台帳をCSVにするのは、次のどちらかに当てはまるときだけ。**
+
+1. 他の成果物がそのIDを参照する(`traces_to` の到達先になる)
+2. 機械チェックがその列に依存する(`derivation` / `sources` / `oracle` など)
+
+どちらでもない表は、`notes.md` の中に Markdown の表として書く。**表だから台帳にする、をしない** — 誰も検証しない表を構造化しても、書く手間が増えるだけで何も保証されない。
+
+同じ理由で、**導出できるものは台帳にしない**。状態は遷移の起点・終点から、引き継ぎは遷移の属性から、ストーリーは業務ゴールから読める。1つの台帳を節ごとに違う切り口で見せるのはレンダラの仕事であり、台帳を分ける理由にはならない。
+
+`_shared/schemas/<名前>.yaml` にスキーマがある成果物が台帳を持つ。
 
 ```
 qa-output/<セッション名>/

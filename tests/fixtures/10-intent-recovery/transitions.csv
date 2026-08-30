@@ -1,2 +1,3 @@
-﻿id,from_state,operation,to_state,actor,trigger,guard,sources,derivation,evidence_level
-TRN-01,STT-01,申請,STT-02,ACT-01,申請ボタン,必須項目が充足していること,basic-design.md#3.2,,
+﻿id,object,from_state,operation,to_state,actor,trigger,guard,next_actor,notice_by,fails_when,deadline,sources,derivation
+TRN-01,請求書,下書き,申請,申請中,ACT-01,申請ボタン,必須項目が充足していること,ACT-02,承認待ち一覧に表示される,承認者が退職済みで一覧に出ない,3営業日,basic-design.md#3.2,
+TRN-02,請求書,申請中,承認,承認済み,ACT-02,承認ボタン,不明,,,,,basic-design.md#3.2,

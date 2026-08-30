@@ -1,4 +1,4 @@
 ﻿id,name,goal,kind,summary,actors,priority,traces_to,derivation,precondition,trigger,steps,checkpoints,oracle,oracle_detail,downstream,evidence_level,sources,rationale
-SC-01,起票から承認までの正常フロー,BG-01,正常,起票者が申請し承認者が承認する,ACT-01;ACT-02,High,BG-01;TRN-01;HO-01,,起票者に作成権限があり、承認者が在籍している,起票者が申請ボタンを押す,"1. ACT-01 が申請(下書き→申請中) / 引き継ぎ: HO-01
+SC-01,起票から承認までの正常フロー,BG-01,正常,起票者が申請し承認者が承認する,ACT-01;ACT-02,High,BG-01;TRN-01;TRN-02,,起票者に作成権限があり、承認者が在籍している,起票者が申請ボタンを押す,"1. ACT-01 が申請(下書き→申請中) / 引き継ぎ: HO-01
 2. ACT-02 が承認(申請中→承認済み)",,db,invoices.status が approved、かつ invoice_sync に1件連携される,会計システムへ連携され、月次集計に反映される,confirmed,basic-design.md#3.2,
-SC-02,承認者退職後の申請,BG-01,例外,承認者が退職しており引き継ぎが失敗する,ACT-01,High,HO-01,proposed,承認者が退職済み,起票者が申請ボタンを押す,1. ACT-01 が申請(下書き→申請中) / 引き継ぎ: HO-01 が失敗する,,db,承認待ち一覧に出ず、3営業日後も status が submitted のまま,,hypothesis,,過去障害 BUG-1234 と同じ引き継ぎ失敗の型
+SC-02,承認者退職後の申請,BG-01,例外,承認者が退職しており引き継ぎが失敗する,ACT-01,High,BG-01;TRN-01,proposed,承認者が退職済み,起票者が申請ボタンを押す,1. ACT-01 が申請(下書き→申請中) / 引き継ぎ: HO-01 が失敗する,,db,承認待ち一覧に出ず、3営業日後も status が submitted のまま,,hypothesis,,過去障害 BUG-1234 と同じ引き継ぎ失敗の型

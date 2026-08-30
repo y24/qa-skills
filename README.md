@@ -47,12 +47,10 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
       domain-glossary.md                # ★ドメイン用語の蓄積場所
     hooks.md                # ★hooksが何を保証するかの唯一の定義元
     schemas/                # ★台帳系成果物のスキーマ(列・必須・許容値・MD構成)
-      intent-recovery.yaml  #   意図モデル(ACT/STT/TRN/BG/HO/US など台帳6つ)
+      intent-recovery.yaml  #   意図モデル(ACT / TRN / BG の3台帳)
       scenario-design.yaml  #   業務シナリオ(一覧・詳細・提案を1台帳から描き分ける)
       test-viewpoint.yaml
       test-case.yaml
-      spec-review.yaml
-      test-design-review.yaml
     scripts/                # 定型処理の補助スクリプト(Python 3.9+ 標準ライブラリのみ)
       qa_session.py         # qa-session.json の作成・更新・再開判定
       defect_stats.py       # 不具合CSVの正規化雛形とラベル集計

@@ -4,8 +4,19 @@
 # conventions.md §6-1。**このスキルセットのID体系の源**であり、
 # シナリオ・観点・ケースはここのIDを traces_to で指す。
 #
-# 台帳が6つある(ACT / STT / TRN / BG / HO / US)。1成果物が複数の台帳を
-# 持つ最初の例。
+# 台帳は3つだけ。「他の成果物がIDを参照するか、機械チェックが列に依存する
+# ものだけ台帳にする」という基準による(conventions.md §6-2)。落としたもの:
+#
+#   状態(旧 STT)   遷移の from_state / to_state から導出できる。「その状態で
+#                    できること」= 出ていく遷移の操作、「終端」= 出ていく遷移が
+#                    ないこと。遷移カバレッジが状態カバレッジを含むので、
+#                    両方測る意味がない。終端状態だけ notes.md に1行書く
+#   引き継ぎ(旧 HO) 引き継ぎとは「その遷移のあと別のActorが拾う」ことなので、
+#                    遷移の列にした(next_actor 以下)。人が読む節は
+#                    `filter: has:next_actor` のビューとして今までどおり出る
+#   ストーリー(旧 US)業務ゴールに統合した。設計原則6「ストーリーは正本ではなく
+#                    モデルのビュー」に従えば独立したIDを持つ理由がない
+#   後続影響・確認事項 IDがなく機械チェックもないので notes.md の表にした
 
 artifact: intent-recovery
 number: "10"
@@ -20,7 +31,7 @@ ledgers:
       - name: id
         label: ID
         required: yes
-        pattern: "^ACT-\\d+$"
+        pattern: '^ACT-\d+$'
       - name: actor
         label: Actor
         required: yes
@@ -43,61 +54,51 @@ ledgers:
         enum: [confirmed, likely, hypothesis]
         render: no
 
-  - key: states
-    id_prefix: STT
-    fields:
-      - name: id
-        label: ID
-        required: yes
-        pattern: "^STT-\\d+$"
-      - name: object
-        label: オブジェクト
-        required: yes
-      - name: state
-        label: 状態
-        required: yes
-      - name: allowed
-        label: その状態でできること
-        type: list
-        required: yes
-      - name: terminal
-        label: 終端か
-        required: yes
-        enum: [yes, no]
-      - name: sources
-        label: 出典
-        type: list
-      - name: derivation
-        enum: [explicit, inferred, proposed]
-        default: explicit
-        render: no
-      - name: evidence_level
-        enum: [confirmed, likely, hypothesis]
-        render: no
-
+  # 状態遷移。状態と引き継ぎはこの台帳から導出・派生する
   - key: transitions
     id_prefix: TRN
     fields:
       - name: id
         label: ID
         required: yes
-        pattern: "^TRN-\\d+$"
+        pattern: '^TRN-\d+$'
+      - name: object
+        label: オブジェクト
+        required: yes
       - name: from_state
-        label: 起点(STT)
+        label: 起点の状態
         required: yes
       - name: operation
         label: 操作
         required: yes
       - name: to_state
-        label: 終点(STT)
+        label: 終点の状態
         required: yes
       - name: actor
         label: Actor(ACT)
         required: yes
+      # trigger / guard は必須。**厳密な仕様が分からなくても書けるように、
+      # `不明` と AMB-ID を許容値に入れている**。空欄だと「条件なし」なのか
+      # 「調べていない」のか区別できず、穴が後段に流れない
       - name: trigger
         label: トリガー
+        required: yes
       - name: guard
         label: ガード条件
+        required: yes
+      # --- ここから下が引き継ぎ(旧 HO)。next_actor が埋まっている行が引き継ぎ ---
+      - name: next_actor
+        label: 引き継ぎ先(ACT)
+        render: no
+      - name: notice_by
+        label: 気づく手段
+        render: no
+      - name: fails_when
+        label: 失敗する条件
+        render: no
+      - name: deadline
+        label: 期限・タイムアウト
+        render: no
       - name: sources
         label: 出典
         type: list
@@ -109,13 +110,14 @@ ledgers:
         enum: [confirmed, likely, hypothesis]
         render: no
 
+  # 業務ゴール。ユーザーストーリーは同じ行のビュー(story / value 列)
   - key: goals
     id_prefix: BG
     fields:
       - name: id
         label: ID
         required: yes
-        pattern: "^BG-\\d+$"
+        pattern: '^BG-\d+$'
       - name: actor
         label: Actor(ACT)
         required: yes
@@ -126,6 +128,15 @@ ledgers:
         label: 関係する遷移(TRN)
         type: list
         required: yes
+      - name: story
+        label: ストーリー
+        required: yes
+        render: no
+      # 根拠のない Value を書かない。書けないときは「不明(要確認)」と書く
+      - name: value
+        label: Value
+        required: yes
+        render: no
       - name: sources
         label: 出典
         type: list
@@ -136,113 +147,6 @@ ledgers:
         label: derivation
         enum: [explicit, inferred, proposed]
         default: explicit
-
-  - key: handoffs
-    id_prefix: HO
-    optional: yes
-    fields:
-      - name: id
-        label: ID
-        required: yes
-        pattern: "^HO-\\d+$"
-      - name: traces_to
-        label: 遷移(TRN)
-        type: list
-        required: yes
-      - name: from_actor
-        label: From(ACT)
-        required: yes
-      - name: to_actor
-        label: To(ACT)
-        required: yes
-      # 「不明」も記録である。空欄を許さないので required にしている
-      - name: notice_by
-        label: 気づく手段
-        required: yes
-      - name: fails_when
-        label: 失敗する条件
-        required: yes
-      - name: deadline
-        label: 期限・タイムアウト
-      - name: sources
-        type: list
-        render: no
-      - name: derivation
-        label: derivation
-        enum: [explicit, inferred, proposed]
-        default: explicit
-
-  - key: impacts
-    optional: yes
-    fields:
-      - name: traces_to
-        label: 遷移(TRN)
-        type: list
-        required: yes
-      - name: target
-        label: 影響先(他システム/帳票/集計/通知/監査)
-        required: yes
-      - name: visible_on_screen
-        label: 画面で確認できるか
-        required: yes
-        enum: [yes, no, partial]
-      - name: verify_by
-        label: 確認手段
-        required: yes
-      - name: sources
-        label: 出典
-        type: list
-
-  - key: stories
-    id_prefix: US
-    optional: yes
-    fields:
-      - name: id
-        label: ID
-        required: yes
-        pattern: "^US-\\d+$"
-      - name: actor
-        label: Actor(ACT)
-        required: yes
-      - name: story
-        label: ストーリー
-        required: yes
-      - name: value
-        label: Value
-        required: yes
-      - name: traces_to
-        label: traces_to
-        type: list
-      - name: sources
-        label: 出典
-        type: list
-      - name: derivation
-        label: derivation
-        enum: [explicit, inferred, proposed]
-        default: explicit
-      - name: evidence_level
-        enum: [confirmed, likely, hypothesis]
-        render: no
-
-  - key: questions
-    optional: yes
-    fields:
-      - name: num
-        label: "#"
-        required: yes
-      - name: question
-        label: 確認事項
-        required: yes
-      - name: options
-        label: 候補となる答え(A/B)
-        type: list
-        required: yes
-      - name: answered_by
-        label: 想定回答者
-        required: yes
-      - name: blocks
-        label: これが決まらないと何が作れないか
-        required: yes
 
 rules:
   - unique_ids
@@ -257,7 +161,7 @@ sections:
     from: ledger.actors
   - num: 2
     title: ドメインオブジェクトと状態
-    from: ledger.states
+    from: narrative.states
   - num: 3
     title: 状態遷移
     intro: narrative.transition_diagram
@@ -265,18 +169,24 @@ sections:
   - num: 4
     title: 業務ゴール
     from: ledger.goals
+    columns: [id, actor, goal, traces_to, sources, evidence_level, derivation]
+  # 同じ遷移台帳を「引き継ぎ」の切り口で見せる
   - num: 5
     title: ロール間の引き継ぎ(handoff)
-    from: ledger.handoffs
+    from: ledger.transitions
+    filter: has:next_actor
+    columns: [id, actor, next_actor, notice_by, fails_when, deadline, derivation]
   - num: 6
     title: 後続影響(downstream_impacts)
-    from: ledger.impacts
+    from: narrative.impacts
+  # 同じ業務ゴール台帳を「ストーリー」の切り口で見せる
   - num: 7
     title: ユーザーストーリー
-    from: ledger.stories
+    from: ledger.goals
+    columns: [id, actor, story, value, traces_to, sources, derivation]
   - num: 8
     title: 確認が必要な事項(暗黙知の欠落)
-    from: ledger.questions
+    from: narrative.questions
   - num: 9
     title: 不足情報
     from: narrative.missing

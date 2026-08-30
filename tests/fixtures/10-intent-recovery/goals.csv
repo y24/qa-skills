@@ -1,2 +1,3 @@
-﻿id,actor,goal,traces_to,sources,evidence_level,derivation
-BG-01,ACT-01,請求書を承認まで通す,TRN-01,requirements.md#1.1,confirmed,
+﻿id,actor,goal,traces_to,story,value,sources,evidence_level,derivation
+BG-01,ACT-01,請求書を承認まで通す,TRN-01;TRN-02,起票者として請求書を申請したい,支払を期日までに完了させるため,requirements.md#1.1,confirmed,
+BG-02,ACT-02,差戻し理由を記録する,TRN-02,承認者として差戻し理由を残したい,再申請の手戻りを減らすため,,hypothesis,proposed

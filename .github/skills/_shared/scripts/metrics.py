@@ -16,7 +16,8 @@ qa-improvement が振り返りレポート(90-improvement.md)のセクション2
     1. 根拠参照率           出典列を持つ表の行のうち、出典が埋まっている割合
     2. 根拠なし事実主張率   explicit(derivation 空欄を含む)なのに出典が空の割合(目標 0%)
     3. トレース率           traces_to の参照のうち、上流に実在するIDを指す割合
-    4. モデルカバレッジ     意図モデルの ACT/STT/TRN/HO のうちシナリオが触れた割合
+    4. モデルカバレッジ     意図モデルの ACT/BG/TRN のうちシナリオが触れた割合
+                            (引き継ぎ = 引き継ぎ先が決まっている遷移も別軸で出す)
     5. シナリオ種別カバレッジ 正常・代替・例外・回復・取消の各種別の有無
     6. 業務オラクル保有率   期待結果が画面表示以外の業務結果を検証している割合
 
@@ -161,7 +162,7 @@ def measure_trace(artifacts):
     }
 
 
-def measure_model_coverage(artifacts):
+def measure_model_coverage(artifacts, session_dir=None):
     """指標4: 意図モデルの要素をシナリオがどれだけ触れたか。"""
     model_text = "".join(t for k, _p, t in artifacts if k.startswith("intent-recovery"))
     scenario_text = "".join(t for k, _p, t in artifacts if k.startswith("scenario-design"))
@@ -169,8 +170,7 @@ def measure_model_coverage(artifacts):
         return {"利用可能": False, "理由": "意図モデルまたはシナリオが無い"}
 
     coverage = {"利用可能": True, "軸": {}}
-    for label, prefix in (("Actor", "ACT"), ("状態", "STT"),
-                          ("遷移", "TRN"), ("引き継ぎ", "HO")):
+    for label, prefix in (("Actor", "ACT"), ("業務ゴール", "BG"), ("遷移", "TRN")):
         defined = extract_defined_ids(model_text, (prefix,))
         touched = {i for i in defined if i in scenario_text}
         coverage["軸"][label] = {
@@ -179,7 +179,44 @@ def measure_model_coverage(artifacts):
             "率": pct(len(touched), len(defined)),
             "未到達": sorted(defined - touched),
         }
+    # 引き継ぎは遷移の部分集合(引き継ぎ先が決まっている遷移)。
+    # Markdown からは切り出せないので台帳CSVを直接見る
+    handoffs = handoff_ids(session_dir) if session_dir else None
+    if handoffs:
+        touched = {i for i in handoffs if i in scenario_text}
+        coverage["軸"]["引き継ぎ"] = {
+            "全体": len(handoffs),
+            "到達": len(touched),
+            "率": pct(len(touched), len(handoffs)),
+            "未到達": sorted(handoffs - touched),
+            "注記": "引き継ぎ先(next_actor)が決まっている遷移",
+        }
     return coverage
+
+
+def handoff_ids(session_dir):
+    """引き継ぎにあたる遷移(next_actor が埋まっている行)のID集合。
+
+    状態・引き継ぎは独立したIDを持たず遷移の属性なので(conventions.md §6-1)、
+    ここだけ台帳CSVを直接読む。構造化されていないセッションでは None。
+    """
+    try:
+        import validate_artifact
+    except ImportError:
+        return None
+    for d in sorted(Path(session_dir).iterdir()):
+        if not d.is_dir() or not d.name.endswith("-intent-recovery"):
+            continue
+        csv_path = d / "transitions.csv"
+        if not csv_path.is_file():
+            return None
+        try:
+            records = validate_artifact.read_table(csv_path)
+        except Exception:
+            return None
+        return {r["id"] for r in records
+                if r.get("id") and str(r.get("next_actor", "")).strip() not in ("", "-")}
+    return None
 
 
 def measure_scenario_kinds(artifacts):
@@ -384,7 +421,7 @@ def main():
 
     ev = measure_evidence(artifacts)
     tr = measure_trace(artifacts)
-    mc = measure_model_coverage(artifacts)
+    mc = measure_model_coverage(artifacts, session_dir)
     sk = measure_scenario_kinds(artifacts)
     orc = measure_oracles(artifacts, session_dir)
 

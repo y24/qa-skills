@@ -109,21 +109,34 @@ def _proposed_heading(level="###"):
 def select(records, filt):
     """セクションの filter に従ってレコードを絞る。
 
-    `not_proposed` / `proposed` は、提案を独立した節に持つ成果物
-    (業務シナリオの「## 3. 提案シナリオ」など)のためのもの。
+    - `proposed` / `not_proposed`: 提案を独立した節に持つ成果物
+      (業務シナリオの「## 3. 提案シナリオ」など)のため
+    - `has:<列名>`: その列が埋まっている行だけ。**1つの台帳を複数の節から
+      別の切り口で見せる**ために使う(引き継ぎ = 次のActorが決まっている遷移)
+
     filter が無い場合は1つの節の中で本表と別表に分ける。
     """
     if filt == "proposed":
         return [r for r in records if is_proposed(r)], False
     if filt == "not_proposed":
         return [r for r in records if not is_proposed(r)], False
+    if filt and filt.startswith("has:"):
+        col = filt[4:].strip()
+        return [r for r in records
+                if str(r.get(col, "") or "").strip() not in ("", "-")], False
     return records, True
 
 
-def render_ledger(ledger, data, filt=None):
-    """台帳セクション(表)。proposed は必ず別表に分ける(conventions.md §5-3)。"""
+def render_ledger(ledger, data, filt=None, columns=None):
+    """台帳セクション(表)。proposed は必ず別表に分ける(conventions.md §5-3)。
+
+    `columns` を渡すと列を絞る。同じ台帳を節ごとに違う切り口で見せるため。
+    """
     records, split = select(data.get(ledger["key"]) or [], filt)
     fields = visible_fields(ledger)
+    if columns:
+        by_name = {f["name"]: f for f in ledger["fields"]}
+        fields = [by_name[c] for c in columns if c in by_name]
     if not split:
         return render_table(fields, records) if records else "該当なし"
 
@@ -215,10 +228,12 @@ def render(schema, data, src_name):
                 lines.append("")
         src = str(sec.get("from", ""))
         filt = str(sec.get("filter", "") or "") or None
+        cols = sec.get("columns") or None
         kind, _, key = src.partition(".")
         if kind == "ledger":
             ledger = by_key.get(key)
-            body = render_ledger(ledger, data, filt) if ledger else "(スキーマに台帳 {} がありません)".format(key)
+            body = (render_ledger(ledger, data, filt, cols) if ledger
+                    else "(スキーマに台帳 {} がありません)".format(key))
         elif kind == "detail":
             ledger = by_key.get(key)
             body = render_detail(ledger, data, filt, schema) if ledger else "(スキーマに台帳 {} がありません)".format(key)

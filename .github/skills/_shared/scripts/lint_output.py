@@ -29,7 +29,7 @@ _shared/skill-map.md §1 が定義元。本スクリプトの対応表はそれ�
                           explicit は既定なので空欄でよい。inferred / proposed が
                           1件も無い成果物には確認を促す警告を出す。
     4. ID書式             QC-ID は `QC-[A-Z]+-\\d+`、AMB-ID は `AMB-\\d+` 形式か。
-                          ACT/BG/STT/TRN/HO/US/SC/VP/TC は `<接頭辞>-<番号>` 形式か
+                          ACT/BG/TRN/SC/VP/TC は `<接頭辞>-<番号>` 形式か
                           (conventions.md §6-1。誤検出があり得るため警告)。
                           表のID列(ヘッダが「ID」の列)内の重複がないか。
     5. 曖昧語             期待結果・判定基準の列に「正しく」「適切に」等の
@@ -345,8 +345,8 @@ AMB_ID_FINDER = re.compile(r"AMB-[0-9A-Za-z_\-]+")
 AMB_ID_VALID = re.compile(r"AMB-\d+$")
 # conventions.md §6-1: 意図モデル〜テストケースの ID 体系
 # SC は長いシナリオのチェックポイント(SC-03.1)を許容する
-MODEL_ID_FINDER = re.compile(r"\b(?:ACT|BG|STT|TRN|HO|US|SC|VP|TC)-[0-9A-Za-z_.\-]+")
-MODEL_ID_VALID = re.compile(r"(?:ACT|BG|STT|TRN|HO|US|SC|VP|TC)-\d+(?:\.\d+)?$")
+MODEL_ID_FINDER = re.compile(r"\b(?:ACT|BG|TRN|SC|VP|TC)-[0-9A-Za-z_.\-]+")
+MODEL_ID_VALID = re.compile(r"(?:ACT|BG|TRN|SC|VP|TC)-\d+(?:\.\d+)?$")
 FILENAME_RE = re.compile(r"^(\d{2})-([0-9a-z][0-9a-z\-]*)\.md$")
 SESSION_FILE_RE = re.compile(r"^\d{2}-.+\.md$")
 
@@ -726,7 +726,7 @@ def check_id_formats(result, lines, tables):
                 result.add(
                     "WARN", lineno, "id-format",
                     "ID の書式が規約外です: 「%s」"
-                    "(conventions.md §6-1: <接頭辞>-<番号> 例 ACT-01 / SC-03 / SC-03.1)"
+                    "(conventions.md §6-1: <接頭辞>-<番号> 例 ACT-01 / TRN-02 / SC-03.1)"
                     % token,
                 )
     # 表のID列(ヘッダが「ID」ちょうどの列)の重複

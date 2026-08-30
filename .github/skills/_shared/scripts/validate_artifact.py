@@ -110,7 +110,7 @@ def schema_for(path):
 
 def ledgers_of(schema):
     """スキーマの台帳定義を list で返す。1成果物が複数の台帳を持つことがある
-    (例: 意図モデルは ACT / STT / TRN / BG / HO / US の6つ)。"""
+    (例: 意図モデルは Actor / 遷移 / 業務ゴールの3つ)。"""
     if "ledgers" in schema and isinstance(schema["ledgers"], list):
         return schema["ledgers"]
     if "ledger" in schema:

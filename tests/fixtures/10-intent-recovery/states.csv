@@ -1,3 +1,0 @@
-﻿id,object,state,allowed,terminal,sources,derivation,evidence_level
-STT-01,請求書,下書き,編集;申請,no,basic-design.md#3.1,,
-STT-02,請求書,申請中,承認;差戻し;取消,no,basic-design.md#3.1,,

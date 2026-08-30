@@ -1,3 +1,15 @@
 {
-  "chat.customAgentInSubagent.enabled": true
+  // カスタムエージェント(.github/agents/)を runSubagent から呼べるようにする
+  "chat.customAgentInSubagent.enabled": true,
+
+  // 品質ゲートの hook をどこから読むか(定義元: .github/skills/_shared/hooks.md)。
+  // VS Code は .github/hooks/ と .claude/settings.json の両方を既定で読むため、
+  // .claude/ 側を明示的に無効にして二重登録を防ぐ。
+  // 二重に登録すると Stop の連続ブロック回数が二重に加算され、
+  // 意図した上限(hooks.md §4)より早く降格してしまう。
+  "chat.hookFilesLocations": {
+    ".github/hooks": true,
+    ".claude/settings.json": false,
+    ".claude/settings.local.json": false
+  }
 }

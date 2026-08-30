@@ -45,6 +45,7 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
       review-checklist.md               # ★自分のレビュー観点の蓄積場所
       code-review-viewpoints.md         # ★品質特性→コードの見どころ
       domain-glossary.md                # ★ドメイン用語の蓄積場所
+    hooks.md                # ★hooksが何を保証するかの唯一の定義元
     scripts/                # 定型処理の補助スクリプト(Python 3.9+ 標準ライブラリのみ)
       qa_session.py         # qa-session.json の作成・更新・再開判定
       defect_stats.py       # 不具合CSVの正規化雛形とラベル集計
@@ -52,10 +53,19 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
       trace_check.py        # 成果物間のID突合(意図モデル⇄シナリオ⇄観点⇄ケース)
       lint_output.py        # 成果物の書式・evidence_level・derivation・ID書式チェック
       metrics.py            # 指標算出(根拠参照率・トレース率・カバレッジ)
+      gate_check.py         # ★検証の単一入口(lint+突合をゲート単位で束ねる)
+      hook_entry.py         # hooksアダプタ(各ツールの入出力方言を吸収する薄い層)
 
 .github/agents/             # GitHub Copilot 用アダプター層(2ファイルのみ)
   qa-orchestrator.agent.md  # 統括役
   qa-skill-runner.agent.md  # 全スキル共通の汎用ランナー
+
+.github/hooks/              # 品質ゲートの配線(Copilot CLI / cloud agent / VS Code)
+  qa-quality-gates.json
+  check_hooks_config.py     # 2つの設定ファイルがずれていないかの検査
+.claude/settings.json       # 同じ配線(Claude Code。形式が違うだけで呼ぶものは同じ)
+.github/workflows/
+  qa-artifacts.yml          # CI。成果物の検証と、検証層自身の自己検査
 ```
 
 ## 設計原則
@@ -87,6 +97,11 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
    対応方針の判断に集中する。
 10. **測るのは件数ではなく規律** — 根拠参照率・**根拠なし事実主張率(目標0%)**・
    トレース率・カバレッジを `metrics.py` で測る。指標を目標にしてはならない。
+11. **指示ではなく保証** — 「AIに指示してある」と「機械が保証している」は違う。
+   機械判定できる規約(ゲート承認の前提・マスター資産の保護・成果物の書式)は
+   hooks で強制し、AIが回避できない位置に置く。ただし**ブロックしてよいのは
+   誤検出しない検査だけ**。指摘の妥当性・網羅性は人間の責務のまま置く。
+   定義元は [hooks.md](.github/skills/_shared/hooks.md)。
 
 ## 3つの実行モード
 
@@ -127,11 +142,11 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
 
 このディレクトリを各ツールがスキル/指示として読める場所に置く(またはリンクする)。
 
-| ツール | 方法 |
-|---|---|
-| GitHub Copilot | **専用のカスタムエージェント層 `.github/agents/` を同梱**(VS Code v1.107+)。`.github/skills/` は Copilot の Agent Skills 公式配置でもあるため、各スキルは Copilot から直接発見される。qa-orchestrator が `#tool:agent/runSubagent` で各エージェントを呼び出す。質問ツールは `vscode/askQuestions` |
-| Claude Code | `.claude/skills/` へリンクするか、プロンプトで `SKILL.md` を直接読ませる。コンテキスト分離は Agent ツール + [subagent-contract.md](.github/skills/_shared/subagent-contract.md)。質問ツールは `AskUserQuestion` |
-| Cursor / その他 | ルール・コンテキストとして `qa-orchestrator/SKILL.md` を読み込ませれば、残りは相対パスで辿られる |
+| ツール | 方法 | 品質ゲート(hooks) |
+|---|---|---|
+| GitHub Copilot | **専用のカスタムエージェント層 `.github/agents/` を同梱**(VS Code v1.107+)。`.github/skills/` は Copilot の Agent Skills 公式配置でもあるため、各スキルは Copilot から直接発見される。qa-orchestrator が `#tool:agent/runSubagent` で各エージェントを呼び出す。質問ツールは `vscode/askQuestions` | `.github/hooks/qa-quality-gates.json`(CLI / cloud agent / VS Code。VS Code は preview) |
+| Claude Code | `.claude/skills/` へリンクするか、プロンプトで `SKILL.md` を直接読ませる。コンテキスト分離は Agent ツール + [subagent-contract.md](.github/skills/_shared/subagent-contract.md)。質問ツールは `AskUserQuestion` | `.claude/settings.json` |
+| Cursor / その他 | ルール・コンテキストとして `qa-orchestrator/SKILL.md` を読み込ませれば、残りは相対パスで辿られる | hooks は使えない。`gate_check.py` を手順から呼ぶ + CI |
 
 どのツールでも、スキル機構がない場合は「`.github/skills/qa-orchestrator/SKILL.md` を
 読んでその指示に従って」と依頼すれば動作する。
@@ -167,6 +182,33 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
 - Premium Requests は指示単位で消費されるため、フルフローは qa-orchestrator への
   一回の指示でまとめて流すのが経済的。その分サブエージェント呼び出しの
   オーバーヘッドで応答時間・総トークンは増える。
+
+## 品質ゲート(hooks)
+
+規約のうち機械判定できるものは hooks で強制している。「AIに指示してある」を
+「機械が保証している」に変えるのが目的で、**どの hook が何を保証するかの定義元は
+[hooks.md](.github/skills/_shared/hooks.md)**。
+
+| イベント | 保証すること |
+|---|---|
+| `SessionStart` | 再開可能なセッションを文脈に注入する(再開判定がAI任せにならない) |
+| `PreToolUse`(シェル) | ゲート承認の直前に、そのゲートが束ねる成果物を検証する |
+| `PreToolUse`(書き込み) | セッション稼働中のマスター資産の書き換えを止める |
+| `PostToolUse`(書き込み) | 成果物を書いた直後に書式を検証し、その場でフィードバックする |
+| `Stop` / `SubagentStop` | 未承認ゲートに未解消の検出があるうちは終わらせない |
+
+判定の実装は [gate_check.py](.github/skills/_shared/scripts/gate_check.py) の**1本だけ**で、
+SKILL.md の手順も hooks も CI も同じものを呼ぶ。hook 設定は各ツールの形式が違うため
+2ファイルあるが、配線を持つだけで判定ロジックは持たない
+(ずれ検出: `python .github/hooks/check_hooks_config.py`)。
+
+**現在は全 hook が `--warn-only` 付き(慣らし運転中)。** 検出をAIに伝えるだけで
+ブロックはしない。1〜2セッション回して誤検出が出ないことを確認してから外す
+(手順は [hooks.md §5](.github/skills/_shared/hooks.md))。
+
+hooks が使えない環境でも、[gate_check.py](.github/skills/_shared/scripts/gate_check.py)
+を手順から呼ぶ層と CI 層は動く。4層の防御の全体像は
+[scripts/README.md](.github/skills/_shared/scripts/README.md) を参照。
 
 ## 最初の一歩(PoC)
 

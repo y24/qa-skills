@@ -1,0 +1,67 @@
+{
+  "$comment": "QAスキルセットの品質ゲート。定義元は .github/skills/_shared/hooks.md(どの hook が何を保証するかはそちらの §2)。GitHub Copilot CLI / Copilot cloud agent / VS Code Copilot が読む。Claude Code 用の配線は .claude/settings.json にあり、形式が違うだけで呼ぶスクリプトは同じ。判定は gate_check.py の1本だけが行い、ここは配線のみ。matcher は VS Code では無視されるため実際の絞り込みは hook_entry.py の中で行っている。--warn-only は慣らし運転用(hooks.md §5)。",
+  "version": 1,
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "python .github/skills/_shared/scripts/hook_entry.py session-start",
+        "bash": "python3 .github/skills/_shared/scripts/hook_entry.py session-start",
+        "linux": "python3 .github/skills/_shared/scripts/hook_entry.py session-start",
+        "osx": "python3 .github/skills/_shared/scripts/hook_entry.py session-start",
+        "windows": "python .github/skills/_shared/scripts/hook_entry.py session-start"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "type": "command",
+        "matcher": "bash|powershell",
+        "command": "python .github/skills/_shared/scripts/hook_entry.py pre-bash --warn-only",
+        "bash": "python3 .github/skills/_shared/scripts/hook_entry.py pre-bash --warn-only",
+        "linux": "python3 .github/skills/_shared/scripts/hook_entry.py pre-bash --warn-only",
+        "osx": "python3 .github/skills/_shared/scripts/hook_entry.py pre-bash --warn-only",
+        "windows": "python .github/skills/_shared/scripts/hook_entry.py pre-bash --warn-only"
+      },
+      {
+        "type": "command",
+        "matcher": "create|edit",
+        "command": "python .github/skills/_shared/scripts/hook_entry.py pre-write --warn-only",
+        "bash": "python3 .github/skills/_shared/scripts/hook_entry.py pre-write --warn-only",
+        "linux": "python3 .github/skills/_shared/scripts/hook_entry.py pre-write --warn-only",
+        "osx": "python3 .github/skills/_shared/scripts/hook_entry.py pre-write --warn-only",
+        "windows": "python .github/skills/_shared/scripts/hook_entry.py pre-write --warn-only"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "type": "command",
+        "matcher": "create|edit",
+        "command": "python .github/skills/_shared/scripts/hook_entry.py post-write --warn-only",
+        "bash": "python3 .github/skills/_shared/scripts/hook_entry.py post-write --warn-only",
+        "linux": "python3 .github/skills/_shared/scripts/hook_entry.py post-write --warn-only",
+        "osx": "python3 .github/skills/_shared/scripts/hook_entry.py post-write --warn-only",
+        "windows": "python .github/skills/_shared/scripts/hook_entry.py post-write --warn-only"
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "python .github/skills/_shared/scripts/hook_entry.py stop --warn-only",
+        "bash": "python3 .github/skills/_shared/scripts/hook_entry.py stop --warn-only",
+        "linux": "python3 .github/skills/_shared/scripts/hook_entry.py stop --warn-only",
+        "osx": "python3 .github/skills/_shared/scripts/hook_entry.py stop --warn-only",
+        "windows": "python .github/skills/_shared/scripts/hook_entry.py stop --warn-only"
+      }
+    ],
+    "SubagentStop": [
+      {
+        "type": "command",
+        "command": "python .github/skills/_shared/scripts/hook_entry.py subagent-stop --warn-only",
+        "bash": "python3 .github/skills/_shared/scripts/hook_entry.py subagent-stop --warn-only",
+        "linux": "python3 .github/skills/_shared/scripts/hook_entry.py subagent-stop --warn-only",
+        "osx": "python3 .github/skills/_shared/scripts/hook_entry.py subagent-stop --warn-only",
+        "windows": "python .github/skills/_shared/scripts/hook_entry.py subagent-stop --warn-only"
+      }
+    ]
+  }
+}

@@ -91,5 +91,6 @@
 1. 本ファイルの §1 依存関係表・§2 モードの連鎖・§3 ゲートの割り当てを更新
 2. `conventions.md §6` の番号帯に成果物を追加(帯そのものは変えない)
 3. `scripts/lint_output.py` の `FIXED_NAMES` / `SECTION_SPECS` を追随(コメントの出典は本ファイル)
-4. `.github/agents/` は**追随不要**(汎用ランナー方式のため、スキルが増減しても変更されない)
-5. ルート `README.md` の構成を追随
+4. `scripts/gate_check.py` の `GATE_ARTIFACTS`(§3 のゲートが束ねる成果物)を追随
+5. `.github/agents/` と `hooks.md` は**追随不要**(汎用ランナー方式・ゲート単位の検証のため、スキルが増減しても変更されない)
+6. ルート `README.md` の構成を追随

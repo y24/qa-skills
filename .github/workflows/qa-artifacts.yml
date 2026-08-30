@@ -22,13 +22,19 @@ on:
   pull_request:
     paths:
       - '.github/skills/_shared/scripts/**'
+      - '.github/hooks/**'
       - '.github/workflows/qa-artifacts.yml'
+      - '.claude/settings.json'
+      - '.vscode/settings.json'
       - 'qa-output/**'
   push:
     branches: [main]
     paths:
       - '.github/skills/_shared/scripts/**'
+      - '.github/hooks/**'
       - '.github/workflows/qa-artifacts.yml'
+      - '.claude/settings.json'
+      - '.vscode/settings.json'
       - 'qa-output/**'
   workflow_dispatch:
 
@@ -73,6 +79,13 @@ jobs:
             echo "--- $s"
             python "$SCRIPTS/$s" --help > /dev/null
           done
+
+      - name: hook 配線がずれていないこと
+        run: |
+          set -e
+          # hook 設定は形式が違うため Copilot 用と Claude Code 用の2つある。
+          # ずれると片方の環境でだけゲートが静かに効かなくなる(hooks.md §3)
+          python .github/hooks/check_hooks_config.py
 
       - name: フィクスチャ作成(検出されるべき欠陥を仕込む)
         run: |

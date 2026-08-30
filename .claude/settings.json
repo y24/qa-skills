@@ -1,0 +1,72 @@
+{
+  "$comment": "QAスキルセットの品質ゲート(Claude Code 用)。定義元は .github/skills/_shared/hooks.md。Copilot 用の配線は .github/hooks/qa-quality-gates.json にあり、形式が違うだけで呼ぶスクリプトは同じ。判定は gate_check.py の1本だけが行う。--warn-only は慣らし運転用(hooks.md §5)。python が PATH に無い環境では python3 に置き換える。",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "statusMessage": "QAセッションの再開情報を確認しています",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.github/skills/_shared/scripts/hook_entry.py\" session-start"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "statusMessage": "ゲート承認の前提を検証しています",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.github/skills/_shared/scripts/hook_entry.py\" pre-bash --warn-only"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "statusMessage": "マスター資産への書き込みを確認しています",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.github/skills/_shared/scripts/hook_entry.py\" pre-write --warn-only"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "statusMessage": "成果物の書式を検証しています",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.github/skills/_shared/scripts/hook_entry.py\" post-write --warn-only"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "statusMessage": "未承認ゲートの成果物を検証しています",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.github/skills/_shared/scripts/hook_entry.py\" stop --warn-only"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "statusMessage": "サブエージェントの成果物を検証しています",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.github/skills/_shared/scripts/hook_entry.py\" subagent-stop --warn-only"
+          }
+        ]
+      }
+    ]
+  }
+}

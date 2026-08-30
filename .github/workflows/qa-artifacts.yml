@@ -1,0 +1,258 @@
+# QA成果物の検証(hooks が無い環境の最後の砦)
+#
+# 4層の防御(_shared/scripts/README.md)のうち第4層。
+#   1. SKILL.md の手順  2. gate_check.py  3. hooks  4. CI ← これ
+#
+# 2つのジョブを持つ:
+#   - verifier-selftest : 検証層そのものが壊れていないかを確かめる。
+#                         **gate_check が誤って PASS を返すようになると全ゲートが
+#                         黙って無効になる**ため、種を仕込んだフィクスチャで
+#                         「検出できること」と「解消したら通ること」の両方を見る。
+#   - qa-artifacts      : リポジトリに qa-output/ がある場合、各セッションを検証する。
+#                         (このスキルセット単体のリポジトリには通常存在しない。
+#                          利用側プロジェクトへコピーして使うことを想定)
+#
+# 実装メモ: Windows ランナーでも同じ bash スクリプトが動くよう、
+# ワークスペース直下の相対パスだけを使い `cd` しない($RUNNER_TEMP は
+# Windows では `D:\a\_temp` 形式になり bash のエスケープと衝突するため)。
+
+name: QA成果物の検証
+
+on:
+  pull_request:
+    paths:
+      - '.github/skills/_shared/scripts/**'
+      - '.github/workflows/qa-artifacts.yml'
+      - 'qa-output/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/skills/_shared/scripts/**'
+      - '.github/workflows/qa-artifacts.yml'
+      - 'qa-output/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SCRIPTS: .github/skills/_shared/scripts
+  FX: _ci-fixture
+
+jobs:
+  verifier-selftest:
+    name: 検証層の自己検査 (${{ matrix.os }} / Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # scripts/README.md が宣言する下限バージョン
+          - { os: ubuntu-latest, python: '3.9' }
+          - { os: ubuntu-latest, python: '3.13' }
+          # 「Windows / macOS / Linux 対応」の宣言を実際に確かめる
+          - { os: windows-latest, python: '3.13' }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: 構文チェック(標準ライブラリのみで動くこと)
+        run: python -m compileall -q "$SCRIPTS"
+
+      - name: 各スクリプトが起動できること
+        run: |
+          set -e
+          for s in qa_session.py defect_stats.py pairwise.py trace_check.py \
+                   lint_output.py metrics.py gate_check.py hook_entry.py; do
+            echo "--- $s"
+            python "$SCRIPTS/$s" --help > /dev/null
+          done
+
+      - name: フィクスチャ作成(検出されるべき欠陥を仕込む)
+        run: |
+          set -e
+          mkdir -p "$FX"
+          python "$SCRIPTS/qa_session.py" init "$FX/qa-output/ci" --name ci \
+            --feature "CI自己検査" --run-mode process
+          python "$SCRIPTS/qa_session.py" add-phase "$FX/qa-output/ci" \
+            --steps qa-test-viewpoint:G4 --steps qa-test-case-design:G4
+
+          cat > "$FX/qa-output/ci/30-test-viewpoint.md" <<'EOF'
+          # テスト観点一覧: CI自己検査
+
+          > 実行モード: process
+
+          ## 1. 土台の分解表
+
+          | 機能 | 入力条件 | 状態 | 出力 |
+          |---|---|---|---|
+          | 申請 | 必須項目充足 | 下書き | 申請中 |
+
+          ## 2. テスト観点一覧
+
+          | ID | 対象(SC/機能) | 観点 | 期待結果の要点 | 導出元(技法/特性/BUG-ID/QC-ID/仕様節) | traces_to | 優先度 |
+          |---|---|---|---|---|---|---|
+          | VP-01 | 申請 | 必須項目未入力で申請できないこと | 申請ボタンが無効。DBの状態が変わらない | 同値分割 | - | High |
+
+          ## 3. 対象外とした観点とその理由
+
+          該当なし
+
+          ## 4. 期待結果が定義できなかった観点
+
+          該当なし
+
+          ## 5. カバレッジ確認結果
+
+          該当なし
+          EOF
+
+          cat > "$FX/qa-output/ci/31-test-case.md" <<'EOF'
+          # テストケース: CI自己検査
+
+          ## 1. 展開サマリー
+
+          該当なし
+
+          ## 2. テストケース一覧
+
+          | ID | 観点ID | 前提条件 | 手順 | 期待結果 |
+          |---|---|---|---|---|
+          | TC-01 | VP-01 | 下書きがある | 空で申請 | 申請ボタンが無効。status が draft のまま |
+          | TC-02 | VP-99 | 下書きがある | 空で申請 | エラーになる |
+
+          ## 3. 実行順序・依存関係の注意
+
+          該当なし
+
+          ## 4. 未展開の観点とその理由
+
+          該当なし
+          EOF
+
+      - name: 仕込んだ欠陥を検出できること(誤って PASS を返さないこと)
+        run: |
+          set -e
+          # TC-02 が実在しない観点 VP-99 を参照している(trace_check チェック1)
+          if python "$SCRIPTS/gate_check.py" "$FX/qa-output/ci" --gate G4; then
+            echo "::error::gate_check が仕込んだ欠陥(VP-99 への孤児参照)を見逃しました。検証層が機能していません。"
+            exit 1
+          fi
+          echo "OK: 仕込んだ欠陥を検出しました"
+
+      - name: 規約どおりのヘッダが誤検出されないこと
+        run: |
+          set -e
+          # `導出元(…/QC-ID/…)` は qa-test-viewpoint の出力フォーマットが定める
+          # 正しいヘッダ。これが ERROR になると全観点一覧がブロックされる
+          errs=$(python "$SCRIPTS/gate_check.py" --files "$FX/qa-output/ci/30-test-viewpoint.md" --json \
+                 | python -c "import json,sys; print(json.load(sys.stdin)['lint']['errors'])")
+          if [ "$errs" != "0" ]; then
+            echo "::error::規約どおりに書いた成果物が lint ERROR になりました(誤検出 $errs 件)。"
+            python "$SCRIPTS/gate_check.py" --files "$FX/qa-output/ci/30-test-viewpoint.md"
+            exit 1
+          fi
+          echo "OK: 規約どおりのヘッダは誤検出されません"
+
+      - name: 解消したら通ること
+        run: |
+          set -e
+          python - "$FX/qa-output/ci/31-test-case.md" <<'PY'
+          import sys
+          from pathlib import Path
+          p = Path(sys.argv[1])
+          p.write_text(p.read_text(encoding="utf-8").replace("VP-99", "VP-01"),
+                       encoding="utf-8")
+          PY
+          python "$SCRIPTS/gate_check.py" "$FX/qa-output/ci" --gate G4
+          echo "OK: 解消後は PASS します"
+
+      - name: Quick モードには網羅の手続きを課さないこと
+        run: |
+          set -e
+          mkdir -p "$FX/qa-output/quick"
+          cp "$FX/qa-output/ci/30-test-viewpoint.md" "$FX/qa-output/quick/"
+          python "$SCRIPTS/qa_session.py" init "$FX/qa-output/quick" --name quick \
+            --feature q --run-mode quick
+          out=$(python "$SCRIPTS/gate_check.py" "$FX/qa-output/quick")
+          echo "$out"
+          echo "$out" | grep -q "run_mode=quick" \
+            || { echo "::error::Quick モードで trace_check がスキップされていません(skill-map.md §2 違反)"; exit 1; }
+          echo "OK: skill-map.md §2 を尊重しています"
+
+      - name: hook アダプタが方言差を吸収し fail-open すること
+        run: |
+          set -e
+          cmd="python qa_session.py set-gate qa-output/ci G4 approved"
+          python - "$FX" "$cmd" <<'PY' > "$FX/payload_claude.json"
+          import json, sys
+          print(json.dumps({"cwd": sys.argv[1], "session_id": "ci",
+                            "tool_name": "Bash",
+                            "tool_input": {"command": sys.argv[2]}}))
+          PY
+          python - "$FX" "$cmd" <<'PY' > "$FX/payload_copilot.json"
+          import json, sys
+          print(json.dumps({"cwd": sys.argv[1], "session_id": "ci",
+                            "toolName": "bash",
+                            "toolArgs": {"command": sys.argv[2]}}))
+          PY
+          # 直前のステップで欠陥は解消済み。どちらの方言でも通過するはず
+          for f in payload_claude.json payload_copilot.json; do
+            python "$SCRIPTS/hook_entry.py" pre-bash < "$FX/$f" > /dev/null \
+              || { echo "::error::$f: 解消済みなのにブロックされました"; exit 1; }
+          done
+          # 壊れた入力でもワークフローを止めないこと(fail-open)
+          echo '{broken' | python "$SCRIPTS/hook_entry.py" pre-bash > /dev/null 2>&1 \
+            || { echo "::error::壊れたペイロードで異常終了しました(fail-open でない)"; exit 1; }
+          echo "OK: 方言吸収と fail-open を確認しました"
+
+      - name: 欠陥を戻すと hook がブロックすること
+        run: |
+          set -e
+          python - "$FX/qa-output/ci/31-test-case.md" <<'PY'
+          import sys
+          from pathlib import Path
+          p = Path(sys.argv[1])
+          p.write_text(p.read_text(encoding="utf-8").replace("| TC-02 | VP-01 |", "| TC-02 | VP-99 |"),
+                       encoding="utf-8")
+          PY
+          if python "$SCRIPTS/hook_entry.py" pre-bash < "$FX/payload_claude.json" > /dev/null 2>&1; then
+            echo "::error::ゲート承認ガードが欠陥を素通ししました。"
+            exit 1
+          fi
+          echo "OK: ゲート承認ガードがブロックしました"
+
+  qa-artifacts:
+    name: QA成果物のゲート検証
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: セッションごとに gate_check を実行
+        run: |
+          set -e
+          if [ ! -d qa-output ]; then
+            echo "qa-output/ がないためスキップします(このリポジトリでは通常の状態)"
+            exit 0
+          fi
+          status=0
+          found=0
+          for d in qa-output/*/; do
+            [ -d "$d" ] || continue
+            found=1
+            echo "::group::$d"
+            python "$SCRIPTS/gate_check.py" "$d" || status=1
+            echo "::endgroup::"
+          done
+          [ "$found" = "1" ] || echo "検証対象のセッションがありません"
+          exit $status

@@ -4,3 +4,4 @@ _research
 __pycache__/
 .agents/skills/darwin-skill
 skills-lock.json
+_ci-fixture/

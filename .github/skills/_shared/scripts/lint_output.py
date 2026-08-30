@@ -697,7 +697,13 @@ def check_derivation(result, artifact_type, text, tables):
 
 def check_id_formats(result, lines, tables):
     """チェック4: QC-ID / AMB-ID の書式と、表のID列内の重複"""
+    # 表のヘッダ行は列ラベル(例: 「導出元(技法/特性/BUG-ID/QC-ID/仕様節)」)であって
+    # ID の出現ではない。SKILL.md の出力フォーマットが定めるヘッダそのものが
+    # 誤検出になるため、ヘッダ行は書式検査の対象から外す。
+    header_lines = {t["header_line"] for t in tables}
     for lineno, line in enumerate(lines, start=1):
+        if lineno in header_lines:
+            continue
         for m in QC_ID_FINDER.finditer(line):
             token = m.group(0)
             if not QC_ID_VALID.match(token):

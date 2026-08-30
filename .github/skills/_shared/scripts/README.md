@@ -18,6 +18,8 @@ QAスキル群のワークフローのうち、**入出力が決まっていて�
 | [trace_check.py](trace_check.py) | 成果物間のID突合: 意図モデル⇄シナリオ⇄観点⇄ケースの孤児参照、導出元欠落、未確認QC基準、AMB参照切れ、ID重複 | qa-intent-recovery / qa-scenario-design / qa-test-viewpoint / qa-test-case-design / qa-test-design-review |
 | [lint_output.py](lint_output.py) | 成果物の必須セクション・evidence_level・derivation の付与漏れ・ID書式・曖昧語のチェック | 全スキル(要約提示前)/ qa-improvement 手順2 |
 | [metrics.py](metrics.py) | conventions.md §11 の指標算出: 根拠参照率・根拠なし事実主張率・トレース率・モデル/シナリオ種別カバレッジ・業務オラクル保有率 | qa-improvement 手順2 / qa-scenario-design 手順7 / qa-test-design-review 手順0 |
+| [gate_check.py](gate_check.py) | **検証の単一入口。** `lint_output.py` と `trace_check.py` を承認ゲート単位で束ねる。判定基準を1箇所に閉じるためのもの | SKILL.md の手順 / hooks / CI(すべてここを呼ぶ) |
+| [hook_entry.py](hook_entry.py) | hooks アダプタ。各AIツールの hook 入出力方言を吸収して `gate_check.py` を呼び、終了コードに変換する。**判定ロジックは持たない** | hook 設定(`.github/hooks/*.json` / `.claude/settings.json` / `.agent.md` frontmatter) |
 
 各スクリプトの詳細な使い方は `python <スクリプト> --help` と冒頭の docstring を参照。
 
@@ -44,6 +46,34 @@ python .github/skills/_shared/scripts/pairwise.py params.json --format md
 python .github/skills/_shared/scripts/trace_check.py qa-output/my-session
 python .github/skills/_shared/scripts/lint_output.py --session-dir qa-output/my-session
 python .github/skills/_shared/scripts/metrics.py qa-output/my-session
+
+# ゲート単位の検証(lint + trace をまとめて)
+python .github/skills/_shared/scripts/gate_check.py qa-output/my-session --gate G4
+python .github/skills/_shared/scripts/gate_check.py qa-output/my-session --unapproved
+python .github/skills/_shared/scripts/gate_check.py --files qa-output/my-session/30-test-viewpoint.md
+```
+
+## 4層の防御(検証はどこで効くか)
+
+同じ判定を4つの層で重ねる。**判定の実装は `gate_check.py` の1本だけ**で、どの層もそれを呼ぶ。1箇所で判定基準が決まるので、層が増えても定義は二重化しない(skill-map.md §5 と同じ考え方)。
+
+| 層 | 実体 | 効く環境 | 強制力 |
+|---|---|---|---|
+| 1. 手順 | 各 SKILL.md の「機械確認」ステップ | すべて | なし(AIが従うかどうかに依存する) |
+| 2. 単一入口 | `gate_check.py` | Python が使えるすべて | 呼べば確実 |
+| 3. hooks | `hook_entry.py`(hook 設定から起動) | Claude Code / Copilot CLI / Copilot cloud agent / VS Code(preview) | AIが回避できない |
+| 4. CI | [.github/workflows/qa-artifacts.yml](../../../workflows/qa-artifacts.yml) | PRを出すなら常に | 最終防衛 |
+
+hooks はまだ配線していない(段階導入)。層3を有効にするまでは層1・2・4で運用する。
+
+**CI は成果物だけでなく検証層自身も検査する。** `gate_check.py` が誤って PASS を返すようになると全ゲートが黙って無効になるため、欠陥を仕込んだフィクスチャで「検出できること」と「規約どおりの成果物を誤検出しないこと」の両方を毎回確かめている。
+
+### 慣らし運転
+
+hooks を有効にするときは、いきなり止めない。`--warn-only` を付けて1〜2セッション回し、誤検出が出ないことを確認してから外す。
+
+```bash
+python .github/skills/_shared/scripts/hook_entry.py stop --warn-only
 ```
 
 ## 責務の境界
@@ -57,6 +87,8 @@ python .github/skills/_shared/scripts/metrics.py qa-output/my-session
 
 スクリプトはマスター資産(conventions.md §8)。配布先のセッション内では変更せず、不具合・改善は qa-improvement の振り返りレポート経由でメンテナーに提案し、[maintenance-log.md](../maintenance-log.md) のトリアージを経て反映する。
 
-スキルの追加・削除・成果物フォーマットの変更をしたときの追随手順は [skill-map.md §5](../skill-map.md) を参照。`lint_output.py` は必須セクション対応表を、`trace_check.py` / `metrics.py` は ID 体系(conventions.md §6-1)を持つため、**定義元を変えたらこれらも追随させること**(各エントリに出典コメントあり)。
+スキルの追加・削除・成果物フォーマットの変更をしたときの追随手順は [skill-map.md §5](../skill-map.md) を参照。`lint_output.py` は必須セクション対応表を、`trace_check.py` / `metrics.py` は ID 体系(conventions.md §6-1)を、`gate_check.py` は**ゲートが束ねる成果物の対応表**(skill-map.md §3)を持つため、**定義元を変えたらこれらも追随させること**(各エントリに出典コメントあり)。
+
+`gate_check.py` のゲート対応表はセッションファイルが無いときのフォールバックにすぎない。通常は `qa-session.json` の `plan`(各ステップの `gate` と `output`)が正として使われる。
 
 `metrics.py` は表の解析に `trace_check.py` の関数を import する(同一ディレクトリ配置が前提)。

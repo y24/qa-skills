@@ -10,20 +10,22 @@ LLMの「読み込み→修正→全体書き戻し」の代わりに行う。�
 
 使用例:
     python qa_session.py init qa-output/invoice-export --name invoice-export \\
-        --feature "請求書エクスポート機能" --description "CSV/PDF出力の新規追加"
+        --feature "請求書エクスポート機能" --description "CSV/PDF出力の新規追加" \\
+        --run-mode process
     python qa_session.py add-input qa-output/invoice-export --type spec \\
         --path docs/spec.xlsx --note "仕様書 v2" \\
         --converted qa-output/invoice-export/sources/spec.xlsx.md
     python qa_session.py add-phase qa-output/invoice-export --order 1 \\
-        --skill qa-defect-analysis
+        --skill qa-defect-analysis --gate G2
     python qa_session.py add-phase qa-output/invoice-export --order 4 \\
-        --skill qa-spec-review --mode 1
+        --skill qa-spec-review --gate G2 --target requirements
     python qa_session.py set-status qa-output/invoice-export 1 in_progress
     python qa_session.py set-status qa-output/invoice-export 1 approved \\
         --output 01-defect-analysis.md
+    python qa_session.py set-gate qa-output/invoice-export G2 approved
     python qa_session.py add-decision qa-output/invoice-export --phase 1 \\
         --decision "軽微な表記ゆれ不具合は分析対象から除外"
-    python qa_session.py add-note qa-output/invoice-export "フェーズ2の質問が冗長"
+    python qa_session.py add-note qa-output/invoice-export "ステップ2の質問が冗長"
     python qa_session.py show qa-output/invoice-export
     python qa_session.py resume-info            # 既定: ./qa-output を走査
     python qa_session.py resume-info path/to/qa-output
@@ -51,6 +53,20 @@ STATUS_LABELS = {
     "approved": "承認済み",
     "skipped": "スキップ",
 }
+
+# skill-map.md §2: 実行モード(どこまで根拠に基づくかの宣言)
+VALID_RUN_MODES = ("quick", "grounded", "process")
+
+# skill-map.md §3: 承認ゲート(成果物ごとではなく意味が変わる地点で承認を取る)
+GATE_LABELS = {
+    "G1": "スコープ",
+    "G2": "根拠と未知",
+    "G3": "意図モデル",
+    "G4": "テスト設計",
+    "G5": "完了",
+}
+VALID_GATES = tuple(GATE_LABELS)
+VALID_GATE_STATUSES = ("pending", "awaiting_approval", "approved", "skipped")
 
 
 def _now_iso():
@@ -112,6 +128,12 @@ def _find_phase(session, order):
 
 
 def cmd_init(args):
+    if args.run_mode not in VALID_RUN_MODES:
+        _fail(
+            "不正な run-mode です: {} (許可: {})".format(
+                args.run_mode, " / ".join(VALID_RUN_MODES)
+            )
+        )
     path = _session_path(args.dir)
     if os.path.exists(path):
         _fail("セッションファイルが既に存在します: {}".format(path))
@@ -121,12 +143,14 @@ def cmd_init(args):
         "session_name": args.name,
         "created_at": now,
         "updated_at": now,
+        "run_mode": args.run_mode,
         "target": {
             "feature": args.feature,
             "description": args.description or "",
         },
         "inputs": [],
         "plan": [],
+        "gates": [{"gate": g, "status": "pending"} for g in VALID_GATES],
         "current_order": None,
         "decisions": [],
         "improvement_notes": [],
@@ -152,19 +176,25 @@ def cmd_add_phase(args):
                 args.status, " / ".join(VALID_STATUSES)
             )
         )
+    if args.gate is not None and args.gate not in VALID_GATES:
+        _fail(
+            "不正な gate です: {} (許可: {})".format(args.gate, " / ".join(VALID_GATES))
+        )
     session = _load(args.dir)
     if _find_phase(session, args.order) is not None:
-        _fail("order={} のフェーズは既に存在します".format(args.order))
+        _fail("order={} のステップは既に存在します".format(args.order))
     phase = {"order": args.order, "skill": args.skill}
-    if args.mode is not None:
-        phase["mode"] = args.mode
+    if args.target:
+        phase["target"] = args.target
+    if args.gate is not None:
+        phase["gate"] = args.gate
     phase["status"] = args.status
     phase["output"] = None
     plan = session.setdefault("plan", [])
     plan.append(phase)
     plan.sort(key=lambda p: p.get("order", 0))
     _save(args.dir, session)
-    print("フェーズを追加しました: order={} skill={}".format(args.order, args.skill))
+    print("ステップを追加しました: order={} skill={}".format(args.order, args.skill))
 
 
 def cmd_set_status(args):
@@ -177,7 +207,7 @@ def cmd_set_status(args):
     session = _load(args.dir)
     phase = _find_phase(session, args.order)
     if phase is None:
-        _fail("order={} のフェーズが見つかりません".format(args.order))
+        _fail("order={} のステップが見つかりません".format(args.order))
     phase["status"] = args.status
     if args.output is not None:
         phase["output"] = args.output
@@ -185,8 +215,40 @@ def cmd_set_status(args):
         session["current_order"] = args.order
     _save(args.dir, session)
     print(
-        "フェーズ {} ({}) の status を {} に更新しました".format(
+        "ステップ {} ({}) の status を {} に更新しました".format(
             args.order, phase.get("skill", "?"), args.status
+        )
+    )
+
+
+def cmd_set_gate(args):
+    if args.gate not in VALID_GATES:
+        _fail(
+            "不正な gate です: {} (許可: {})".format(args.gate, " / ".join(VALID_GATES))
+        )
+    if args.status not in VALID_GATE_STATUSES:
+        _fail(
+            "不正な status です: {} (許可: {})".format(
+                args.status, " / ".join(VALID_GATE_STATUSES)
+            )
+        )
+    session = _load(args.dir)
+    gates = session.setdefault(
+        "gates", [{"gate": g, "status": "pending"} for g in VALID_GATES]
+    )
+    entry = next((g for g in gates if g.get("gate") == args.gate), None)
+    if entry is None:
+        entry = {"gate": args.gate}
+        gates.append(entry)
+    entry["status"] = args.status
+    if args.status == "approved":
+        entry["approved_at"] = _now_iso()
+    if args.note:
+        entry["note"] = args.note
+    _save(args.dir, session)
+    print(
+        "ゲート {} ({}) の status を {} に更新しました".format(
+            args.gate, GATE_LABELS.get(args.gate, "?"), args.status
         )
     )
 
@@ -219,6 +281,7 @@ def cmd_show(args):
     description = target.get("description") or ""
     if description:
         print("説明          : {}".format(description))
+    print("実行モード    : {}".format(session.get("run_mode", "(未設定)")))
     print("作成日時      : {}".format(session.get("created_at", "?")))
     print("更新日時      : {}".format(session.get("updated_at", "?")))
     print("current_order : {}".format(session.get("current_order")))
@@ -234,22 +297,37 @@ def cmd_show(args):
             )
         )
     plan = session.get("plan", [])
-    print("フェーズ      : {} 件".format(len(plan)))
+    print("ステップ      : {} 件".format(len(plan)))
     for phase in plan:
         status = phase.get("status", "?")
         label = STATUS_LABELS.get(status, status)
-        mode = phase.get("mode")
+        target = phase.get("target")
+        gate = phase.get("gate")
         output = phase.get("output")
         print(
-            "  {:>3}. {}{} [{} / {}]{}".format(
+            "  {:>3}. {}{}{} [{} / {}]{}".format(
                 phase.get("order", "?"),
                 phase.get("skill", "?"),
-                " (mode {})".format(mode) if mode is not None else "",
+                " <{}>".format(target) if target else "",
+                " ({})".format(gate) if gate else "",
                 status,
                 label,
                 " -> {}".format(output) if output else "",
             )
         )
+    gates = session.get("gates", [])
+    if gates:
+        print("承認ゲート    : {} 件".format(len(gates)))
+        for g in gates:
+            name = g.get("gate", "?")
+            print(
+                "  - {} {} [{}]{}".format(
+                    name,
+                    GATE_LABELS.get(name, ""),
+                    g.get("status", "?"),
+                    " {}".format(g.get("approved_at")) if g.get("approved_at") else "",
+                )
+            )
     decisions = session.get("decisions", [])
     print("判断記録      : {} 件".format(len(decisions)))
     for decision in decisions:
@@ -292,6 +370,7 @@ def cmd_resume_info(args):
         print("■ セッション: {}".format(session.get("session_name", "?")))
         print("  パス            : {}".format(path))
         print("  対象            : {}".format(target.get("feature", "?")))
+        print("  実行モード      : {}".format(session.get("run_mode", "(未設定)")))
         print("  更新日時        : {}".format(session.get("updated_at", "?")))
         if completed:
             done = ", ".join(
@@ -300,13 +379,21 @@ def cmd_resume_info(args):
             )
         else:
             done = "(なし)"
-        print("  完了済みフェーズ: {}".format(done))
-        mode = next_phase.get("mode")
+        print("  完了済みステップ: {}".format(done))
+        approved_gates = [
+            g.get("gate") for g in session.get("gates", [])
+            if g.get("status") == "approved"
+        ]
         print(
-            "  次のフェーズ    : {}. {}{} [{}]".format(
+            "  承認済みゲート  : {}".format(
+                ", ".join(approved_gates) if approved_gates else "(なし)"
+            )
+        )
+        print(
+            "  次のステップ    : {}. {}{} [{}]".format(
                 next_phase.get("order", "?"),
                 next_phase.get("skill", "?"),
-                " (mode {})".format(mode) if mode is not None else "",
+                " <{}>".format(next_phase["target"]) if next_phase.get("target") else "",
                 next_phase.get("status", "?"),
             )
         )
@@ -332,6 +419,8 @@ def build_parser():
     p.add_argument("--name", required=True, help="セッション名")
     p.add_argument("--feature", required=True, help="対象機能")
     p.add_argument("--description", default="", help="対象機能・変更の1〜2行説明")
+    p.add_argument("--run-mode", dest="run_mode", default="grounded",
+                   help="実行モード({})".format(" / ".join(VALID_RUN_MODES)))
     p.set_defaults(func=cmd_init)
 
     p = sub.add_parser("add-input", help="inputs にインプット資料を追記する")
@@ -344,27 +433,37 @@ def build_parser():
                    help="Markdown変換済みファイルのパス(_shared/source-conversion.md)")
     p.set_defaults(func=cmd_add_input)
 
-    p = sub.add_parser("add-phase", help="plan にフェーズを追記する")
+    p = sub.add_parser("add-phase", help="plan に実行ステップを追記する")
     p.add_argument("dir", help="セッションディレクトリ")
     p.add_argument("--order", required=True, type=int, help="実行順(重複不可)")
     p.add_argument("--skill", required=True, help="スキル名(例: qa-defect-analysis)")
-    p.add_argument("--mode", type=int, default=None,
-                   help="モード番号(qa-spec-review 等)")
+    p.add_argument("--target", default="",
+                   help="対象ラベル(成果物名の接尾辞。例: requirements)")
+    p.add_argument("--gate", default=None,
+                   help="所属ゲート({})".format(" / ".join(VALID_GATES)))
     p.add_argument("--status", default="pending",
                    help="初期 status(既定: pending)")
     p.set_defaults(func=cmd_add_phase)
 
-    p = sub.add_parser("set-status", help="フェーズの status を更新する")
+    p = sub.add_parser("set-status", help="ステップの status を更新する")
     p.add_argument("dir", help="セッションディレクトリ")
-    p.add_argument("order", type=int, help="対象フェーズの order")
+    p.add_argument("order", type=int, help="対象ステップの order")
     p.add_argument("status",
                    help="新しい status({})".format(" / ".join(VALID_STATUSES)))
     p.add_argument("--output", default=None, help="成果物ファイル名(output に設定)")
     p.set_defaults(func=cmd_set_status)
 
+    p = sub.add_parser("set-gate", help="承認ゲートの status を更新する")
+    p.add_argument("dir", help="セッションディレクトリ")
+    p.add_argument("gate", help="ゲート({})".format(" / ".join(VALID_GATES)))
+    p.add_argument("status",
+                   help="新しい status({})".format(" / ".join(VALID_GATE_STATUSES)))
+    p.add_argument("--note", default="", help="承認時の条件・補足")
+    p.set_defaults(func=cmd_set_gate)
+
     p = sub.add_parser("add-decision", help="decisions にユーザー判断を追記する")
     p.add_argument("dir", help="セッションディレクトリ")
-    p.add_argument("--phase", required=True, type=int, help="関連フェーズの order")
+    p.add_argument("--phase", required=True, type=int, help="関連ステップの order")
     p.add_argument("--decision", required=True, help="判断の本文")
     p.add_argument("--by", default="user", help="判断者(既定: user)")
     p.set_defaults(func=cmd_add_decision)

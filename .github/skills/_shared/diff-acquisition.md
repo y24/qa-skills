@@ -1,6 +1,6 @@
 # PR・コード差分の取得ガイド
 
-対象コードが PR・diff のスキル(qa-code-review、qa-code-overview モードB、qa-feature-investigation)が、差分の取得で迷わないための手順。対象がローカルのディレクトリ・機能単位で、コードを直接読める場合は読む必要はない。
+対象コードが PR・diff のスキル(qa-code-review、qa-source-analysis 深さB)が、差分の取得で迷わないための手順。対象がローカルのディレクトリ・機能単位で、コードを直接読める場合は読む必要はない。
 
 ## 原則: 差分の本文はローカルの git で取得する
 

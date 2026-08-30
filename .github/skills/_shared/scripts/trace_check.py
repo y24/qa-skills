@@ -10,11 +10,15 @@ LLMによる目視突合の代替であり、検出された孤児・欠落を�
     python trace_check.py qa-output/2026-07-login-feature
     python trace_check.py qa-output/2026-07-login-feature --json
 
+ID体系は conventions.md §6-1、成果物の対応関係は _shared/skill-map.md §1 が定義元。
+
 対象ファイル(存在しないものは関連チェックをスキップ):
+    *-intent-recovery.md    意図モデル(qa-intent-recovery)
+    *-scenario-design.md    業務シナリオ(qa-scenario-design)
     *-test-viewpoint.md     テスト観点一覧(qa-test-viewpoint)
     *-test-case.md          テストケース(qa-test-case-design)
-    *-criteria-analysis.md  品質基準一覧(qa-criteria-analysis)
-    *-spec-review-*.md      仕様レビュー(qa-spec-review、複数可)
+    *-test-strategy.md      テスト戦略・品質基準(qa-test-strategy)
+    *-spec-review*.md       仕様レビュー(qa-spec-review、対象別に複数可)
     *-test-design-review.md テスト設計レビュー(qa-test-design-review。AMB定義の収集のみ)
 
 チェック項目:
@@ -26,10 +30,14 @@ LLMによる目視突合の代替であり、検出された孤児・欠落を�
                             いずれかに定義されているか(テスト設計レビューは仕様由来の
                             指摘を AMB 書式で切り出すことがある)
     6. ID重複             : 観点一覧・テストケース各表内のID重複
+    7. シナリオ参照の整合 : 観点一覧の traces_to が指す SC-NN がシナリオに実在するか
+    8. 未反映シナリオ     : どの観点からも参照されないシナリオ(情報提供のみ)
+    9. 意図モデル参照整合 : シナリオの traces_to が指す ACT/BG/OBJ/STT/TRN/US が
+                            意図モデルに実在するか
 
 exit code:
     0 = 検出なし
-    1 = 検出あり(チェック1,3,4,5,6のいずれか。チェック2は影響しない)
+    1 = 検出あり(チェック1,3,4,5,6,7,9のいずれか。チェック2,8は影響しない)
     2 = 使用法エラー(ディレクトリ不存在等)
 """
 
@@ -169,6 +177,47 @@ def extract_testcase_rows(text):
     return rows_out
 
 
+_MODEL_PREFIXES = ("ACT", "BG", "OBJ", "STT", "TRN", "HO", "US")
+
+
+def extract_defined_ids(text, prefixes):
+    """全ての表の「ID」列から、指定接頭辞のIDを収集する。
+
+    意図モデル・シナリオのように複数の表がそれぞれ別種のIDを定義する成果物で、
+    「この成果物が定義しているID」の集合を作るために使う。
+    """
+    found = set()
+    for header, rows in parse_tables(text):
+        id_col = find_column(header, "ID", exclude="観点ID")
+        if id_col is None:
+            continue
+        for row in rows:
+            value = cell_at(row, id_col)
+            if value in _EMPTY_VALUES:
+                continue
+            for token in split_ids(value):
+                if token.split("-")[0] in prefixes:
+                    found.add(token)
+    return found
+
+
+def extract_rows_with_ref(text, ref_keyword):
+    """「ID」列と参照列(ref_keyword の部分一致)を持つ表から (ID, [参照ID]) を抽出する。"""
+    rows_out = []
+    for header, rows in parse_tables(text):
+        ref_col = find_column(header, ref_keyword)
+        if ref_col is None:
+            continue
+        id_col = find_column(header, "ID", exclude="観点ID")
+        for row in rows:
+            rid = cell_at(row, id_col) if id_col is not None else ""
+            refs = split_ids(cell_at(row, ref_col))
+            if rid in _EMPTY_VALUES and not refs:
+                continue
+            rows_out.append((rid, refs))
+    return rows_out
+
+
 def find_duplicates(ids):
     """出現順を保ってID重複を検出する。Returns: [(id, 出現回数), ...]"""
     counts = {}
@@ -200,16 +249,20 @@ def main():
         return 2
 
     # --- ファイル自動検出 ---
+    im_files = sorted(session_dir.glob("*-intent-recovery.md"))
+    sc_files = sorted(session_dir.glob("*-scenario-design.md"))
     vp_files = sorted(session_dir.glob("*-test-viewpoint.md"))
     tc_files = sorted(session_dir.glob("*-test-case.md"))
-    qc_files = sorted(session_dir.glob("*-criteria-analysis.md"))
-    sr_files = sorted(session_dir.glob("*-spec-review-*.md"))
+    qc_files = sorted(session_dir.glob("*-test-strategy.md"))
+    sr_files = sorted(session_dir.glob("*-spec-review*.md"))
     tdr_files = sorted(session_dir.glob("*-test-design-review.md"))
 
     files_info = {
+        "意図モデル": [f.name for f in im_files],
+        "業務シナリオ": [f.name for f in sc_files],
         "観点一覧": [f.name for f in vp_files],
         "テストケース": [f.name for f in tc_files],
-        "品質基準": [f.name for f in qc_files],
+        "テスト戦略(品質基準)": [f.name for f in qc_files],
         "仕様レビュー": [f.name for f in sr_files],
         "テスト設計レビュー": [f.name for f in tdr_files],
     }
@@ -231,6 +284,23 @@ def main():
         tc_texts[f.name] = text
         for cid, refs in extract_testcase_rows(text):
             tc_rows.append((f.name, cid, refs))
+
+    model_ids = set()     # 意図モデルが定義する ACT/BG/OBJ/STT/US
+    for f in im_files:
+        model_ids |= extract_defined_ids(read_text(f), _MODEL_PREFIXES)
+
+    sc_rows = []          # (file, SC-ID, [traces_to])
+    sc_ids = set()
+    for f in sc_files:
+        text = read_text(f)
+        sc_ids |= extract_defined_ids(text, ("SC",))
+        for sid, refs in extract_rows_with_ref(text, "traces_to"):
+            sc_rows.append((f.name, sid, refs))
+
+    vp_trace_rows = []    # (file, VP-ID, [traces_to])
+    for f in vp_files:
+        for vid, refs in extract_rows_with_ref(vp_texts[f.name], "traces_to"):
+            vp_trace_rows.append((f.name, vid, refs))
 
     qc_texts = {f.name: read_text(f) for f in qc_files}
     sr_texts = {f.name: read_text(f) for f in sr_files}
@@ -365,6 +435,56 @@ def main():
                         "detail": f"{fname}: {dup_id}({label}内に{count}回出現)",
                     })
         add_check(6, "ID重複", "finding" if findings else "ok", findings)
+
+    # --- チェック7: シナリオ参照の整合(観点 → シナリオ)---
+    if not sc_files:
+        add_check(7, "シナリオ参照の整合", "skipped", note="シナリオファイルなし")
+    elif not vp_trace_rows:
+        add_check(7, "シナリオ参照の整合", "skipped",
+                  note="観点一覧に traces_to 列がない(シナリオ起点で設計していない可能性)")
+    else:
+        findings = []
+        for fname, vid, refs in vp_trace_rows:
+            for ref in refs:
+                if ref.startswith("SC-") and ref not in sc_ids:
+                    findings.append({
+                        "file": fname, "viewpoint_id": vid, "scenario_id": ref,
+                        "detail": f"{fname}: {vid or '(ID不明)'} → {ref}(シナリオに存在しない)",
+                    })
+        add_check(7, "シナリオ参照の整合", "finding" if findings else "ok", findings)
+
+    # --- チェック8: 未反映シナリオ(情報提供のみ)---
+    if not sc_files or not vp_files:
+        add_check(8, "未反映シナリオの検出(情報提供)", "skipped",
+                  note="シナリオ・観点一覧の両方が必要")
+    else:
+        referenced = {r for _, _, refs in vp_trace_rows for r in refs}
+        findings = []
+        for sid in sorted(sc_ids):
+            if sid not in referenced:
+                findings.append({
+                    "scenario_id": sid,
+                    "detail": f"{sid}(どの観点からも参照されていない)",
+                })
+        add_check(8, "未反映シナリオの検出(情報提供)", "info" if findings else "ok", findings,
+                  note="未反映は正当な場合がある(シナリオ側の対象外節を確認)")
+
+    # --- チェック9: 意図モデル参照の整合(シナリオ → モデル)---
+    if not im_files:
+        add_check(9, "意図モデル参照の整合", "skipped", note="意図モデルファイルなし")
+    elif not sc_rows:
+        add_check(9, "意図モデル参照の整合", "skipped",
+                  note="シナリオに traces_to 列がない")
+    else:
+        findings = []
+        for fname, sid, refs in sc_rows:
+            for ref in refs:
+                if ref.split("-")[0] in _MODEL_PREFIXES and ref not in model_ids:
+                    findings.append({
+                        "file": fname, "scenario_id": sid, "model_id": ref,
+                        "detail": f"{fname}: {sid or '(ID不明)'} → {ref}(意図モデルに存在しない)",
+                    })
+        add_check(9, "意図モデル参照の整合", "finding" if findings else "ok", findings)
 
     has_findings = any(c["status"] == "finding" for c in checks)
 

@@ -12,11 +12,12 @@ QAスキル群のワークフローのうち、**入出力が決まっていて�
 
 | スクリプト | 用途 | 利用箇所 |
 |---|---|---|
-| [qa_session.py](qa_session.py) | qa-session.json の作成・更新・再開判定。タイムスタンプ付与・status検証・アトミック書き込みを保証 | qa-orchestrator(全フェーズ境界) |
+| [qa_session.py](qa_session.py) | qa-session.json の作成・更新・再開判定。タイムスタンプ付与・status検証・アトミック書き込みを保証 | qa-orchestrator(全ステップ・ゲート境界) |
 | [defect_stats.py](defect_stats.py) | `normalize`: 不具合CSV→ラベル雛形YAML生成 / `stats`: ラベル付け後の4軸分布・クロス集計 | qa-defect-analysis 手順1・3 |
 | [pairwise.py](pairwise.py) | ペアワイズ(全ペア網羅)組み合わせ生成。決定論的・生成後に自己検証。禁止ペア制約対応 | qa-test-case-design 手順2 |
-| [trace_check.py](trace_check.py) | 成果物間のID突合: 観点⇄ケースの孤児参照、導出元欠落、未確認QC基準、AMB参照切れ、ID重複 | qa-test-viewpoint 手順6 / qa-test-case-design 手順5 / qa-test-design-review 手順0 |
-| [lint_output.py](lint_output.py) | 成果物の必須セクション・evidence_level付与漏れ・ID書式・曖昧語のチェック | 全スキル(承認ゲート前)/ qa-improvement 手順2 |
+| [trace_check.py](trace_check.py) | 成果物間のID突合: 意図モデル⇄シナリオ⇄観点⇄ケースの孤児参照、導出元欠落、未確認QC基準、AMB参照切れ、ID重複 | qa-intent-recovery / qa-scenario-design / qa-test-viewpoint / qa-test-case-design / qa-test-design-review |
+| [lint_output.py](lint_output.py) | 成果物の必須セクション・evidence_level・derivation の付与漏れ・ID書式・曖昧語のチェック | 全スキル(要約提示前)/ qa-improvement 手順2 |
+| [metrics.py](metrics.py) | conventions.md §11 の指標算出: 根拠参照率・根拠なし事実主張率・トレース率・モデル/シナリオ種別カバレッジ・業務オラクル保有率 | qa-improvement 手順2 / qa-scenario-design 手順7 / qa-test-design-review 手順0 |
 
 各スクリプトの詳細な使い方は `python <スクリプト> --help` と冒頭の docstring を参照。
 
@@ -25,8 +26,10 @@ QAスキル群のワークフローのうち、**入出力が決まっていて�
 ```bash
 # セッション管理(qa-orchestrator)
 python .github/skills/_shared/scripts/qa_session.py resume-info qa-output
-python .github/skills/_shared/scripts/qa_session.py init qa-output/my-session --name my-session --feature "請求書エクスポート"
-python .github/skills/_shared/scripts/qa_session.py set-status qa-output/my-session 1 approved --output 01-defect-analysis.md
+python .github/skills/_shared/scripts/qa_session.py init qa-output/my-session --name my-session --feature "請求書の申請・承認" --run-mode process
+python .github/skills/_shared/scripts/qa_session.py add-phase qa-output/my-session --order 1 --skill qa-source-analysis --gate G2
+python .github/skills/_shared/scripts/qa_session.py set-status qa-output/my-session 1 approved --output 00-source-analysis.md
+python .github/skills/_shared/scripts/qa_session.py set-gate qa-output/my-session G2 approved
 
 # 不具合分析(qa-defect-analysis)
 python .github/skills/_shared/scripts/defect_stats.py normalize defects.csv -o labeled.yaml
@@ -35,9 +38,10 @@ python .github/skills/_shared/scripts/defect_stats.py stats labeled.yaml
 # ペアワイズ生成(qa-test-case-design)
 python .github/skills/_shared/scripts/pairwise.py params.json --format md
 
-# トレーサビリティ検証・書式チェック
+# トレーサビリティ検証・書式チェック・指標算出
 python .github/skills/_shared/scripts/trace_check.py qa-output/my-session
 python .github/skills/_shared/scripts/lint_output.py --session-dir qa-output/my-session
+python .github/skills/_shared/scripts/metrics.py qa-output/my-session
 ```
 
 ## 責務の境界
@@ -49,6 +53,8 @@ python .github/skills/_shared/scripts/lint_output.py --session-dir qa-output/my-
 
 ## 保守
 
-スクリプトはマスター資産(conventions.md §8)。配布先のセッション内では変更せず、不具合・改善は qa-improvement の振り返りレポート経由でメンテナーに提案し、qa-skillset-maintenance で採否を検討・反映する。
+スクリプトはマスター資産(conventions.md §8)。配布先のセッション内では変更せず、不具合・改善は qa-improvement の振り返りレポート経由でメンテナーに提案し、[maintenance-log.md](../maintenance-log.md) のトリアージを経て反映する。
 
-`lint_output.py` は各成果物の必須セクション対応表をスクリプト内の対応表として持つため、**各 SKILL.md の出力フォーマットを変更したら lint_output.py の対応表も追随させること** (各エントリに出典コメントあり)。
+スキルの追加・削除・成果物フォーマットの変更をしたときの追随手順は [skill-map.md §5](../skill-map.md) を参照。`lint_output.py` は必須セクション対応表を、`trace_check.py` / `metrics.py` は ID 体系(conventions.md §6-1)を持つため、**定義元を変えたらこれらも追随させること**(各エントリに出典コメントあり)。
+
+`metrics.py` は表の解析に `trace_check.py` の関数を import する(同一ディレクトリ配置が前提)。

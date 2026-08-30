@@ -1,6 +1,6 @@
 # ドメイン用語集(テンプレート)
 
-対象プロダクトの用語・略語・業務ルールを蓄積する場所。全スキルが参照する。**最初は空でよい**。qa-feature-investigation や qa-spec-review で未知の用語に出会うたびに追記して育てる。
+対象プロダクトの用語・略語・業務ルールを蓄積する場所。全スキルが参照する。**最初は空でよい**。qa-source-analysis や qa-spec-review、qa-intent-recovery で未知の用語に出会うたびに追記して育てる。
 
 外部ナレッジベース連携(任意)については [_shared/knowledge-base.md](../knowledge-base.md) を参照。
 

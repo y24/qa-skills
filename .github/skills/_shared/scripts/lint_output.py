@@ -7,22 +7,30 @@
 付与漏れ等)を検査する。**内容の質(指摘の妥当性・分析の正しさ)は判定しない。**
 
 使用例:
-    python lint_output.py qa-output/session1/08-test-viewpoint.md
-    python lint_output.py 07-code-review.md 10-test-case.md
+    python lint_output.py qa-output/session1/30-test-viewpoint.md
+    python lint_output.py 41-code-review.md 31-test-case.md
     python lint_output.py --session-dir qa-output/session1
     python lint_output.py --session-dir qa-output/session1 --json
 
+成果物の番号帯・固定名は conventions.md §6、成果物の対応関係は
+_shared/skill-map.md §1 が定義元。本スクリプトの対応表はそれに追随する。
+
 チェック項目:
-    1. ファイル名規約     conventions.md §6 の `NN-<固定名>.md` に合致するか。
-                          番号と固定名の対応も確認(規約外は警告)。
+    1. ファイル名規約     conventions.md §6 の `NN-<固定名>[-<対象>].md` に
+                          合致するか。番号帯と固定名の対応も確認(規約外は警告)。
     2. 必須セクション     各スキルの SKILL.md「出力フォーマット」節で定義された
                           h2 見出し(## N. <タイトル>)が揃っているか。
                           照合は寛容(番号+先頭キーワードの部分一致)。
                           欠落=エラー、順序・番号違い=警告。
     3. evidence_level     分析・レビュー系成果物で、evidence_level 列の空セルが
                           ないか、文書中に evidence_level への言及があるか
-                          (conventions.md §5)。
+                          (conventions.md §5-1)。
+   3b. derivation        上流モデル系成果物で、導出区分(explicit / inferred /
+                          proposed)が付いているか(conventions.md §5-2)。
+                          AIが資料外から補った項目を事実と混ぜないための検査。
     4. ID書式             QC-ID は `QC-[A-Z]+-\\d+`、AMB-ID は `AMB-\\d+` 形式か。
+                          ACT/BG/OBJ/STT/TRN/US/SC/VP/TC は `<接頭辞>-<番号>` 形式か
+                          (conventions.md §6-1。誤検出があり得るため警告)。
                           表のID列(ヘッダが「ID」の列)内の重複がないか。
     5. 曖昧語             期待結果・判定基準の列に「正しく」「適切に」等の
                           合否判定できない語がないか(誤検出があり得るため警告)。
@@ -54,32 +62,42 @@ TOOL_NOTE = (
 # 固定名 → (規約上の番号, 成果物種別)
 # ---------------------------------------------------------------------------
 FIXED_NAMES = {
-    "code-overview": ("00", "code-overview"),
+    "source-analysis": ("00", "source-analysis"),
     "defect-analysis": ("01", "defect-analysis"),
-    "test-analysis": ("02", "test-analysis"),
-    "criteria-analysis": ("03", "criteria-analysis"),
-    "spec-review-mode1": ("04", "spec-review"),
-    "test-planning": ("05", "test-planning"),
-    "feature-investigation": ("06", "feature-investigation"),
-    "code-review": ("07", "code-review"),
-    "test-viewpoint": ("08", "test-viewpoint"),
-    "spec-review-mode2": ("09", "spec-review"),
-    "test-case": ("10", "test-case"),
-    "test-data": ("11", "test-data"),
-    "test-design-review": ("12", "test-design-review"),
-    "improvement": ("99", "improvement"),
+    "intent-recovery": ("10", "intent-recovery"),
+    "scenario-design": ("11", "scenario-design"),
+    "test-strategy": ("20", "test-strategy"),
+    "test-plan": ("21", "test-plan"),
+    "test-viewpoint": ("30", "test-viewpoint"),
+    "test-case": ("31", "test-case"),
+    "test-data": ("32", "test-data"),
+    "spec-review": ("40", "spec-review"),
+    "code-review": ("41", "code-review"),
+    "test-design-review": ("42", "test-design-review"),
+    "improvement": ("90", "improvement"),
 }
 
-# conventions.md §5: 分析・レビュー系(evidence_level を必ず付ける成果物種別)
+# conventions.md §5-1: 分析・レビュー系(evidence_level を必ず付ける成果物種別)
 EVIDENCE_TYPES = {
+    "source-analysis",
     "defect-analysis",
-    "test-analysis",
-    "criteria-analysis",
+    "intent-recovery",
+    "scenario-design",
+    "test-strategy",
     "spec-review",
     "code-review",
     "test-design-review",
-    "code-overview",
 }
+
+# conventions.md §5-2: 導出区分(derivation)を必ず付ける成果物種別
+DERIVATION_TYPES = {
+    "source-analysis",
+    "intent-recovery",
+    "scenario-design",
+    "test-strategy",
+}
+
+DERIVATION_VALUES = ("explicit", "inferred", "proposed")
 
 EVIDENCE_VALUES = ("confirmed", "likely", "hypothesis")
 
@@ -101,7 +119,7 @@ AMBIGUOUS_TARGET_COLUMNS = ("期待結果", "判定基準")
 # 出典: 各スキルの SKILL.md「出力フォーマット」節(コメント参照)
 # ---------------------------------------------------------------------------
 SECTION_SPECS = {
-    # 出典: qa-defect-analysis/SKILL.md「出力フォーマット(NN-defect-analysis.md)」
+    # 出典: qa-defect-analysis/SKILL.md
     "defect-analysis": {
         "label": "不具合分析レポート",
         "sections": [
@@ -113,43 +131,53 @@ SECTION_SPECS = {
             (6, "不足情報・次のアクション", ("不足情報",), True),
         ],
     },
-    # 出典: qa-test-analysis/SKILL.md「出力フォーマット(NN-test-analysis.md)」
-    "test-analysis": {
-        "label": "テスト分析",
+    # 出典: qa-intent-recovery/SKILL.md
+    "intent-recovery": {
+        "label": "意図モデル",
         "sections": [
-            (1, "変更概要", ("変更概要",), True),
+            (1, "Actor 一覧", ("actor",), True),
+            (2, "ドメインオブジェクトと状態", ("オブジェクト",), True),
+            (3, "状態遷移", ("状態遷移",), True),
+            (4, "業務ゴール", ("業務ゴール",), True),
+            (5, "ロール間の引き継ぎ", ("引き継ぎ", "handoff"), True),
+            (6, "後続影響", ("後続影響", "downstream"), True),
+            (7, "ユーザーストーリー", ("ストーリー",), True),
+            (8, "確認が必要な事項", ("確認が必要",), True),
+            (9, "モデルのカバレッジ自己チェック", ("カバレッジ",), True),
+            (10, "不足情報", ("不足情報",), True),
+        ],
+    },
+    # 出典: qa-scenario-design/SKILL.md
+    "scenario-design": {
+        "label": "業務シナリオ",
+        "sections": [
+            (1, "シナリオ一覧", ("シナリオ一覧",), True),
+            (2, "シナリオ詳細", ("シナリオ詳細",), True),
+            (3, "提案シナリオ", ("提案シナリオ",), True),
+            (4, "カバレッジ", ("カバレッジ",), True),
+            (5, "対象外としたシナリオとその理由", ("対象外",), True),
+            (6, "期待結果が定義できなかったシナリオ", ("定義できなかった",), True),
+            (7, "不足情報", ("不足情報",), True),
+        ],
+    },
+    # 出典: qa-test-strategy/SKILL.md「出力フォーマット(20-test-strategy.md)」
+    # 5・6 は手順1のスコープ選択(品質基準まで作るか)で省略されうるため必須にしない
+    "test-strategy": {
+        "label": "テスト戦略",
+        "sections": [
+            (1, "対象と変更概要", ("対象と変更", "変更概要"), True),
             (2, "影響範囲", ("影響範囲",), True),
             (3, "リスク評価", ("リスク評価",), True),
-            (4, "テスト方針", ("テスト方針",), True),
-            (5, "不足情報", ("不足情報",), True),
+            (4, "品質特性の選定", ("品質特性の選定",), True),
+            (5, "品質基準一覧", ("品質基準一覧", "品質基準"), False),
+            (6, "策定例一覧", ("策定例",), False),
+            (7, "テスト方針", ("テスト方針",), True),
+            (8, "除外した品質特性と理由", ("除外",), True),
+            (9, "不足情報", ("不足情報",), True),
         ],
     },
-    # 出典: qa-criteria-analysis/SKILL.md「出力フォーマット(NN-criteria-analysis.md)」
-    "criteria-analysis": {
-        "label": "品質基準一覧",
-        "sections": [
-            (1, "対象と範囲", ("対象と範囲", "対象"), True),
-            (2, "品質リスクサマリ", ("品質リスク",), True),
-            (3, "品質基準一覧(品質特性別)", ("品質基準一覧", "品質基準"), True),
-            (4, "策定例一覧", ("策定例",), True),
-            (5, "除外した品質特性と理由", ("除外",), True),
-            (6, "不足情報", ("不足情報",), True),
-        ],
-    },
-    # 出典: qa-spec-review/SKILL.md「出力フォーマット(NN-spec-review-modeN.md)」
-    # モード1/2 共通フォーマット
-    "spec-review": {
-        "label": "仕様レビュー",
-        "sections": [
-            (1, "サマリー", ("サマリ",), True),
-            (2, "カテゴリ別走査結果", ("カテゴリ別", "走査"), True),
-            (3, "検出一覧", ("検出一覧", "検出"), True),
-            (4, "ユーザー判定結果", ("ユーザー判定",), True),
-            (5, "用語集への追記候補", ("用語集",), True),
-        ],
-    },
-    # 出典: qa-test-planning/SKILL.md「出力フォーマット(NN-test-planning.md)」
-    "test-planning": {
+    # 出典: qa-test-strategy/SKILL.md「出力フォーマット(21-test-plan.md)」
+    "test-plan": {
         "label": "テスト計画",
         "sections": [
             (1, "目的とスコープ(除外を含む)", ("目的", "スコープ"), True),
@@ -161,21 +189,18 @@ SECTION_SPECS = {
             (7, "未確定事項", ("未確定",), True),
         ],
     },
-    # 出典: qa-feature-investigation/SKILL.md「出力フォーマット(NN-feature-investigation.md)」
-    "feature-investigation": {
-        "label": "機能調査",
+    # 出典: qa-spec-review/SKILL.md
+    "spec-review": {
+        "label": "仕様レビュー",
         "sections": [
-            (1, "処理の流れ(入口→出口の要約)", ("処理の流れ",), True),
-            (2, "入力仕様・バリデーション一覧", ("バリデーション", "入力仕様"), True),
-            (3, "権限制御", ("権限",), True),
-            (4, "状態と遷移条件", ("状態", "遷移"), True),
-            (5, "分岐・設定依存", ("分岐",), True),
-            (6, "データ・外部連携への影響", ("外部連携",), True),
-            (7, "仕様書との差分(要確認事項)", ("差分", "仕様書"), True),
-            (8, "未調査領域", ("未調査",), True),
+            (1, "サマリー", ("サマリ",), True),
+            (2, "カテゴリ別走査結果", ("カテゴリ別", "走査"), True),
+            (3, "検出一覧", ("検出一覧", "検出"), True),
+            (4, "ユーザー判定結果", ("ユーザー判定",), True),
+            (5, "用語集への追記候補", ("用語集",), True),
         ],
     },
-    # 出典: qa-code-review/SKILL.md「出力フォーマット(NN-code-review.md)」
+    # 出典: qa-code-review/SKILL.md
     "code-review": {
         "label": "QAコードレビュー",
         "sections": [
@@ -188,17 +213,18 @@ SECTION_SPECS = {
             (7, "チェックポイント更新の提案", ("チェックポイント",), True),
         ],
     },
-    # 出典: qa-test-viewpoint/SKILL.md「出力フォーマット(NN-test-viewpoint.md)」
+    # 出典: qa-test-viewpoint/SKILL.md
     "test-viewpoint": {
         "label": "テスト観点一覧",
         "sections": [
-            (1, "機能分解表", ("機能分解",), True),
+            (1, "土台の分解表", ("分解",), True),
             (2, "テスト観点一覧", ("テスト観点一覧", "観点一覧"), True),
             (3, "対象外とした観点とその理由", ("対象外",), True),
-            (4, "期待結果が定義できなかった観点", ("定義できなかった", "期待結果"), True),
+            (4, "期待結果が定義できなかった観点", ("定義できなかった",), True),
+            (5, "カバレッジ確認結果", ("カバレッジ",), True),
         ],
     },
-    # 出典: qa-test-case-design/SKILL.md「出力フォーマット(NN-test-case.md)」
+    # 出典: qa-test-case-design/SKILL.md「出力フォーマット(31-test-case.md)」
     "test-case": {
         "label": "テストケース",
         "sections": [
@@ -208,50 +234,54 @@ SECTION_SPECS = {
             (4, "未展開の観点とその理由", ("未展開",), True),
         ],
     },
-    # 出典: qa-test-data-design/SKILL.md「出力フォーマット(NN-test-data.md)」
+    # 出典: qa-test-case-design/SKILL.md「出力フォーマット(32-test-data.md)」
     "test-data": {
         "label": "テストデータ設計",
         "sections": [
             (1, "データ要件マトリクス", ("データ要件", "マトリクス"), True),
             (2, "データ定義", ("データ定義",), True),
-            (3, "作成手順 / 生成スクリプト", ("作成手順", "生成スクリプト"), True),
-            (4, "投入・リセットの手順(再実行時の戻し方)", ("リセット", "投入"), True),
-            (5, "注意事項(マスキング・環境制約)", ("注意事項",), True),
+            (3, "アカウント・権限の定義", ("アカウント", "権限"), True),
+            (4, "作成手順 / 生成スクリプト", ("作成手順", "生成スクリプト"), True),
+            (5, "投入・リセットの手順(再実行時の戻し方)", ("リセット", "投入"), True),
+            (6, "注意事項(マスキング・環境制約)", ("注意事項",), True),
         ],
     },
-    # 出典: qa-test-design-review/SKILL.md「出力フォーマット(NN-test-design-review.md)」
+    # 出典: qa-test-design-review/SKILL.md
+    # 3 はシナリオ(11)がある場合のみのため必須にしない
     "test-design-review": {
         "label": "テスト設計レビュー",
         "sections": [
             (1, "総合評価", ("総合評価",), True),
             (2, "走査証跡", ("走査", "証跡"), True),
-            (3, "指摘一覧", ("指摘",), True),
-            (4, "良い点(維持すべきこと)", ("良い点",), True),
-            (5, "ユーザー判定と対応結果", ("ユーザー判定",), True),
-            (6, "チェックリスト更新の提案", ("チェックリスト",), True),
+            (3, "シナリオ・モデルのカバレッジ", ("カバレッジ",), False),
+            (4, "指摘一覧", ("指摘",), True),
+            (5, "良い点(維持すべきこと)", ("良い点",), True),
+            (6, "ユーザー判定と対応結果", ("ユーザー判定",), True),
+            (7, "チェックリスト更新の提案", ("チェックリスト",), True),
         ],
     },
-    # 出典: qa-improvement/SKILL.md「99-improvement.md の構成」
-    # セクション6は「KB連携時のみ」のため必須にしない
+    # 出典: qa-improvement/SKILL.md「90-improvement.md の構成」
+    # セクション7は「KB連携時のみ」のため必須にしない
     "improvement": {
         "label": "振り返りレポート",
         "sections": [
             (1, "セッションサマリ", ("セッションサマリ", "サマリ"), True),
-            (2, "成果物セルフレビュー所見", ("セルフレビュー",), True),
-            (3, "スキル改善提案(メンテナー向け)", ("改善提案",), True),
-            (4, "ナレッジ追記候補", ("ナレッジ",), True),
-            (5, "運用フィードバック", ("フィードバック",), True),
-            (6, "KB ingest 候補(KB連携時のみ)", ("kb",), False),
+            (2, "指標", ("指標",), True),
+            (3, "成果物セルフレビュー所見", ("セルフレビュー",), True),
+            (4, "スキル改善提案(メンテナー向け)", ("改善提案",), True),
+            (5, "ナレッジ追記候補", ("ナレッジ",), True),
+            (6, "運用フィードバック", ("フィードバック",), True),
+            (7, "KB ingest 候補(KB連携時のみ)", ("kb",), False),
         ],
     },
 }
 
-# 出典: qa-code-overview/SKILL.md「出力フォーマット(00-code-overview.md)」
-# モードA/B/C で見出し構成が異なるため h1 と見出しから自動判別する
-CODE_OVERVIEW_MODES = {
-    # モードA: プロダクト概要
+# 出典: qa-source-analysis/SKILL.md「出力フォーマット(00-source-analysis.md)」
+# 深さA/B/C で見出し構成が異なるため h1 と見出しから自動判別する
+SOURCE_ANALYSIS_MODES = {
+    # 深さA: プロダクト概要
     "A": {
-        "label": "コード概要(モードA: プロダクト概要)",
+        "label": "根拠抽出(深さA: プロダクト概要)",
         "h1_keywords": ("プロダクト概要",),
         "sections": [
             (1, "これは何のシステムか(3行要約)", ("これは何のシステム", "何のシステム"), True),
@@ -260,15 +290,16 @@ CODE_OVERVIEW_MODES = {
             (4, "データの全体像", ("データの全体像",), True),
             (5, "外部連携・依存", ("外部連携",), True),
             (6, "設定・権限・環境による挙動差", ("挙動差", "設定・権限"), True),
-            (7, "ドキュメントとの対応と食い違い", ("食い違い", "ドキュメント"), True),
-            (8, "QAが押さえるべき勘所", ("勘所",), True),
-            (9, "用語対応表", ("用語対応",), True),
-            (10, "未調査領域と読み方ガイド", ("未調査",), True),
+            (7, "資料との対応と食い違い(要確認事項)", ("食い違い",), True),
+            (8, "根拠モデル", ("根拠モデル",), True),
+            (9, "QAが押さえるべき勘所", ("勘所",), True),
+            (10, "用語対応表", ("用語対応",), True),
+            (11, "未調査領域と読み方ガイド", ("未調査",), True),
         ],
     },
-    # モードB: 改修概要
+    # 深さB: 改修概要
     "B": {
-        "label": "コード概要(モードB: 改修概要)",
+        "label": "根拠抽出(深さB: 改修概要)",
         "h1_keywords": ("改修概要",),
         "sections": [
             (1, "何のための変更か(意図の要約)", ("何のための変更", "意図の要約"), True),
@@ -277,27 +308,29 @@ CODE_OVERVIEW_MODES = {
             (4, "影響範囲", ("影響範囲",), True),
             (5, "挙動が変わる操作・画面・帳票", ("挙動が変わる",), True),
             (6, "回帰リスクが高そうな箇所とその理由", ("回帰リスク",), True),
-            (7, "ドキュメントとの食い違い・要確認事項", ("食い違い", "ドキュメント"), True),
-            (8, "テスト分析へのインプット要約", ("テスト分析", "インプット"), True),
+            (7, "資料との食い違い・要確認事項", ("食い違い",), True),
+            (8, "根拠モデル", ("根拠モデル",), True),
             (9, "未調査領域", ("未調査",), True),
         ],
     },
-    # モードC: 機能概要
+    # 深さC: 機能詳細
     "C": {
-        "label": "コード概要(モードC: 機能概要)",
-        "h1_keywords": ("機能概要",),
+        "label": "根拠抽出(深さC: 機能詳細)",
+        "h1_keywords": ("機能詳細",),
         "sections": [
-            (1, "機能の目的と利用シーン", ("機能の目的", "利用シーン"), True),
-            (2, "画面・API・バッチの構成", ("構成",), True),
-            (3, "処理の流れ(正常系の要約)", ("処理の流れ",), True),
-            (4, "主要な分岐・状態(概要レベル)", ("分岐",), True),
-            (5, "データ・他機能との関係", ("他機能", "データ・他機能"), True),
-            (6, "ドキュメントとの対応と食い違い", ("食い違い", "ドキュメント"), True),
-            (7, "QAが押さえるべき勘所", ("勘所",), True),
-            (8, "未調査領域", ("未調査",), True),
+            (1, "処理の流れ(入口→出口の要約)", ("処理の流れ",), True),
+            (2, "入力仕様・バリデーション一覧", ("バリデーション", "入力仕様"), True),
+            (3, "権限制御", ("権限",), True),
+            (4, "状態と遷移条件", ("状態", "遷移"), True),
+            (5, "分岐・設定依存", ("分岐",), True),
+            (6, "データ・外部連携への影響", ("外部連携",), True),
+            (7, "資料との差分(要確認事項)", ("差分",), True),
+            (8, "根拠モデル", ("根拠モデル",), True),
+            (9, "未調査領域", ("未調査",), True),
         ],
     },
 }
+
 
 # ---------------------------------------------------------------------------
 # 解析ユーティリティ
@@ -312,6 +345,10 @@ QC_ID_FINDER = re.compile(r"QC-[0-9A-Za-z_\-]+")
 QC_ID_VALID = re.compile(r"QC-[A-Z]+-\d+$")
 AMB_ID_FINDER = re.compile(r"AMB-[0-9A-Za-z_\-]+")
 AMB_ID_VALID = re.compile(r"AMB-\d+$")
+# conventions.md §6-1: 意図モデル〜テストケースの ID 体系
+# SC は長いシナリオのチェックポイント(SC-03.1)を許容する
+MODEL_ID_FINDER = re.compile(r"\b(?:ACT|BG|OBJ|STT|TRN|HO|US|SC|VP|TC)-[0-9A-Za-z_.\-]+")
+MODEL_ID_VALID = re.compile(r"(?:ACT|BG|OBJ|STT|TRN|HO|US|SC|VP|TC)-\d+(?:\.\d+)?$")
 FILENAME_RE = re.compile(r"^(\d{2})-([0-9a-z][0-9a-z\-]*)\.md$")
 SESSION_FILE_RE = re.compile(r"^\d{2}-.+\.md$")
 
@@ -464,7 +501,18 @@ def check_filename(result, path):
                 % (base, expected_num, name),
             )
         return artifact_type
-    # 固定名の部分一致(例: spec-review 単体など)を救済
+    # 接尾辞付き(conventions.md §6: 同じスキルを対象違いで複数回実行する場合)
+    # 例: 40-spec-review-requirements.md
+    for fixed, (expected_num, artifact_type) in FIXED_NAMES.items():
+        if name.startswith(fixed + "-"):
+            if num != expected_num:
+                result.add(
+                    "WARN", None, "filename",
+                    "番号と固定名の対応が規約と異なります: %s(規約では %s-%s-*.md)"
+                    % (base, expected_num, fixed),
+                )
+            return artifact_type
+    # 固定名の部分一致(旧名・省略形など)を救済
     for fixed, (_n, artifact_type) in FIXED_NAMES.items():
         if name.startswith(fixed):
             result.add(
@@ -480,16 +528,16 @@ def check_filename(result, path):
     return None
 
 
-def detect_code_overview_mode(result, h1s, h2s):
-    """qa-code-overview のモードA/B/Cを h1・見出し構成から自動判別する"""
+def detect_source_analysis_mode(result, h1s, h2s):
+    """qa-source-analysis の深さA/B/Cを h1・見出し構成から自動判別する"""
     for lineno, title in h1s:
-        for mode, spec in CODE_OVERVIEW_MODES.items():
+        for mode, spec in SOURCE_ANALYSIS_MODES.items():
             if any(kw in title for kw in spec["h1_keywords"]):
                 return mode
     # h1 で判別できない場合は見出しキーワードの一致数で推定
     best_mode, best_score = None, -1
     titles = [norm_text(t) for (_l, _n, t) in h2s]
-    for mode, spec in CODE_OVERVIEW_MODES.items():
+    for mode, spec in SOURCE_ANALYSIS_MODES.items():
         score = 0
         for _num, _title, keywords, _req in spec["sections"]:
             if any(any(norm_text(kw) in t for t in titles) for kw in keywords):
@@ -498,7 +546,7 @@ def detect_code_overview_mode(result, h1s, h2s):
             best_mode, best_score = mode, score
     result.add(
         "WARN", h1s[0][0] if h1s else None, "section",
-        "h1 からモードを判別できないため、見出し構成からモード%sと推定して検査します"
+        "h1 から深さを判別できないため、見出し構成から深さ%sと推定して検査します"
         % best_mode,
     )
     return best_mode
@@ -506,10 +554,10 @@ def detect_code_overview_mode(result, h1s, h2s):
 
 def check_sections(result, artifact_type, h1s, h2s):
     """チェック2: 必須セクション(各 SKILL.md 出力フォーマット節)"""
-    if artifact_type == "code-overview":
-        mode = detect_code_overview_mode(result, h1s, h2s)
+    if artifact_type == "source-analysis":
+        mode = detect_source_analysis_mode(result, h1s, h2s)
         result.mode = mode
-        spec = CODE_OVERVIEW_MODES[mode]
+        spec = SOURCE_ANALYSIS_MODES[mode]
     else:
         spec = SECTION_SPECS[artifact_type]
 
@@ -581,7 +629,7 @@ def check_evidence_level(result, artifact_type, text, tables):
         result.add(
             "ERROR", None, "evidence",
             "分析・レビュー系成果物ですが evidence_level への言及がありません"
-            "(conventions.md §5: 各指摘・結論に証拠レベルを必ず付ける)",
+            "(conventions.md §5-1: 各指摘・結論に証拠レベルを必ず付ける)",
         )
         return
     # evidence_level 列を持つ表の空セル・不正値
@@ -610,6 +658,48 @@ def check_evidence_level(result, artifact_type, text, tables):
                 )
 
 
+def check_derivation(result, artifact_type, text, tables):
+    """チェック3b: derivation(導出区分)の付与(conventions.md §5-2)
+
+    evidence_level(確信度)とは直交する軸。「その項目がどこから来たか」を
+    explicit / inferred / proposed で区別し、AIが資料外から補った項目
+    (proposed)を資料由来の事実と混ぜないための検査。
+    """
+    if artifact_type not in DERIVATION_TYPES:
+        return
+    if "derivation" not in text and not any(v in text for v in DERIVATION_VALUES):
+        result.add(
+            "ERROR", None, "derivation",
+            "この成果物種別は導出区分が必須ですが derivation への言及がありません"
+            "(conventions.md §5-2: explicit / inferred / proposed)",
+        )
+        return
+    for table in tables:
+        col = None
+        for i, h in enumerate(table["header"]):
+            if "derivation" in norm_text(h) or "導出区分" in h:
+                col = i
+                break
+        if col is None:
+            continue
+        for lineno, cells in table["rows"]:
+            if all(not c for c in cells):
+                continue
+            value = cells[col].strip() if col < len(cells) else ""
+            if not value or value in ("-", "—", "ー"):
+                result.add(
+                    "ERROR", lineno, "derivation",
+                    "derivation 列が空です"
+                    "(explicit / inferred / proposed のいずれかを付与)",
+                )
+            elif not any(v in norm_text(value) for v in DERIVATION_VALUES):
+                result.add(
+                    "WARN", lineno, "derivation",
+                    "derivation の値が規約外です: 「%s」"
+                    "(規約値: explicit / inferred / proposed)" % value,
+                )
+
+
 def check_id_formats(result, lines, tables):
     """チェック4: QC-ID / AMB-ID の書式と、表のID列内の重複"""
     for lineno, line in enumerate(lines, start=1):
@@ -627,6 +717,16 @@ def check_id_formats(result, lines, tables):
                 result.add(
                     "ERROR", lineno, "id-format",
                     "AMB-ID の書式が不正です: 「%s」(正しい書式: AMB-<番号> 例 AMB-001)" % token,
+                )
+        # conventions.md §6-1 の ID 体系(誤検出があり得るため警告扱い)
+        for m in MODEL_ID_FINDER.finditer(line):
+            token = m.group(0)
+            if not MODEL_ID_VALID.match(token):
+                result.add(
+                    "WARN", lineno, "id-format",
+                    "ID の書式が規約外です: 「%s」"
+                    "(conventions.md §6-1: <接頭辞>-<番号> 例 ACT-01 / SC-03 / SC-03.1)"
+                    % token,
                 )
     # 表のID列(ヘッダが「ID」ちょうどの列)の重複
     for table in tables:
@@ -691,6 +791,7 @@ def lint_file(path):
     if artifact_type is not None:
         check_sections(result, artifact_type, h1s, h2s)
         check_evidence_level(result, artifact_type, text, tables)
+        check_derivation(result, artifact_type, text, tables)
     check_id_formats(result, lines, tables)
     check_ambiguous_words(result, tables)
     return result
@@ -731,8 +832,8 @@ def print_text_report(results):
         print("=== %s ===" % r.path)
         if r.artifact_type:
             label = (
-                CODE_OVERVIEW_MODES[r.mode]["label"]
-                if r.artifact_type == "code-overview" and r.mode
+                SOURCE_ANALYSIS_MODES[r.mode]["label"]
+                if r.artifact_type == "source-analysis" and r.mode
                 else SECTION_SPECS.get(r.artifact_type, {}).get("label", r.artifact_type)
             )
             print("種別: %s (%s)" % (r.artifact_type, label))

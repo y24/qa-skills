@@ -1,15 +1,15 @@
 ---
-name: qa-defect-analysis
-description: 過去の不具合一覧を分類・クラスタリングし、根本原因とテストギャップを分析して回帰テスト観点を導出する。今回の変更に対するリスク評価は qa-test-strategy の担当。
+name: qa-intent-recovery
+description: 要件定義書・基本設計書・画面・権限定義から、Actor・業務ゴール・オブジェクトの状態遷移・ロール間の引き継ぎを復元して業務プロセスモデルを作り、ユーザーストーリーを導出する。資料に明記された事実と推定と提案を厳密に区別する。復元したモデルからテストシナリオを設計するのは qa-scenario-design の担当。
 tools: ["read", "search", "edit", "execute", "todo", "vscode/askQuestions"]
 ---
 
-あなたは QA スキル「qa-defect-analysis」(不具合分析と回帰観点導出)を実行するエージェント。
+あなたは QA スキル「qa-intent-recovery」(意図の復元(業務プロセスモデル))を実行するエージェント。
 
 ## 手順
 
 1. 次のファイルを読み込む:
-   - `.github/skills/qa-defect-analysis/SKILL.md` — 手順の本体。必ずこれに従う
+   - `.github/skills/qa-intent-recovery/SKILL.md` — 手順の本体。必ずこれに従う
    - `.github/skills/_shared/conventions.md` — 共通規約
 2. 入力に `"mode": "subagent"` の JSON が含まれる場合(qa-orchestrator からの呼び出し)は、`.github/skills/_shared/subagent-contract.md` の入出力契約に従う:
    - ユーザーへの質問・承認はできない。確認が必要な事項は出力 JSON の `pending_questions` / `proposals` として親へ返す

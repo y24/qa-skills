@@ -1,6 +1,6 @@
 # インプット資料のMarkdown変換(markitdown)
 
-Excel・PDF・Word・PowerPoint などの資料はAIが直接読むと非効率・不正確になりやすい。コマンド実行と [markitdown](https://github.com/microsoft/markitdown) が使える環境では、分析に使う前に Markdown へ変換し、以降のフェーズでは変換後ファイルを読む。
+Excel・PDF・Word・PowerPoint などの資料はAIが直接読むと非効率・不正確になりやすい。コマンド実行と [markitdown](https://github.com/microsoft/markitdown) が使える環境では、分析に使う前に Markdown へ変換し、以降のステップでは変換後ファイルを読む。
 
 このファイルは、インプット資料に変換対象の形式が**含まれる場合のみ**読めばよい (conventions.md §10)。
 
@@ -32,7 +32,7 @@ markitdown "docs/仕様書.xlsx" -o "qa-output/<セッション名>/sources/仕�
 
 ## セッションへの記録
 
-qa-orchestrator 経由の場合、`add-input` は**原本パス**で登録し、`--converted` に変換後パスを記録する(session-schema.md の `converted_path`)。以降のフェーズには変換後パスを渡す。
+qa-orchestrator 経由の場合、`add-input` は**原本パス**で登録し、`--converted` に変換後パスを記録する(session-schema.md の `converted_path`)。以降のステップには変換後パスを渡す。
 
 ## 出典の書き方
 

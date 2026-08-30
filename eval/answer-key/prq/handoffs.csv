@@ -1,0 +1,7 @@
+id,category,title,target,match,difficulty,rationale
+HND-K01,handoff,申請者 → 承認者(提出により承認待ちへ),,提出|申請;承認者|承認待ち|approver,A,basic-design.md §4 遷移2。最初の引き継ぎ点
+HND-K02,handoff,承認者 → 購買担当(承認完了により発注待ちへ),,承認済|approved|承認完了;購買担当|調達|発注|buyer,A,basic-design.md §2・§3.6。ロールが変わる境目
+HND-K03,handoff,購買担当 → サプライヤ(EDI送信),,edi|サプライヤ;発注|送信,A,batch-and-integration.md BATCH-02。社外への引き継ぎ
+HND-K04,handoff,EDI送信完了 → 申請者(検収依頼),,検収依頼|検収登録|納品|検収;通知|メール|依頼,B,basic-design.md §6 の通知表。バッチが人へ戻す引き継ぎで、通知が届かないと業務が止まる
+HND-K05,handoff,申請者 → 経理担当(検収完了により会計計上・締めへ),,計上|会計|締め;経理|accountant,B,basic-design.md §3.8・batch-and-integration.md BATCH-05
+HND-K06,handoff,承認者 → 代理承認者(不在期間中の委任),,代理;不在|期間|委任,B,basic-design.md §3.5。人から人への引き継ぎで権限範囲が未定義(AMB-K05)

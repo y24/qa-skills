@@ -1,0 +1,13 @@
+id,category,title,target,match,difficulty,rationale
+AMB-K01,ambiguity,二段階承認の金額境界が要件定義と基本設計で食い違う,,10万|100000;以上|超え|超える|境界|不一致|矛盾|食い違;二段階|承認経路|調達部長|step2,A,requirements.md FR-06 は「10万円以上」・basic-design.md §3.1 は「10万円を超える」。100000円ちょうどの扱いが決まらない。BUG-1003 と同型
+AMB-K02,ambiguity,自動失効の期間が要件定義とバッチ設計で食い違う,,失効|expired;14日|10営業日,A,requirements.md FR-15 と basic-design.md §3.4 は14日・batch-and-integration.md §2 は10営業日。暦日と営業日の違いも重なる
+AMB-K03,ambiguity,一次承認済みの申請を差し戻したときの承認ステップの扱いが未定義,,差戻;一次承認|承認履歴|approvals|承認ステップ|step,B,basic-design.md §3.2 は再提出時に承認経路を再計算するとだけ書き、step1 の承認実績を破棄するのか維持するのかを決めていない
+AMB-K04,ambiguity,失効した申請を再利用できるかが未定義,,失効|expired;再利用|復活|再提出|複製|コピー|やり直し|新規起票,B,batch-and-integration.md §2 は「失効した申請は編集できない」とだけ書き、同じ内容で起こし直す手段を定めていない。運用上は必ず発生する
+AMB-K05,ambiguity,代理承認者が差戻し・取消を行えるかが未定義,,代理;差戻|取消|権限範囲|できる操作|操作範囲,B,basic-design.md §3.5 は承認だけを書き、rbac.md の権限マトリクスに代理承認者の行がない。operation-manual.md は現行運用で代理は取消を行わないとするが PRQ の仕様ではない
+AMB-K06,ambiguity,EDI送信バッチ実行中に取消要求が来たときの判定基準が未定義,,edi|送信;取消;実行中|バッチ中|タイミング|基準|判定時点|競合|同時,B,basic-design.md §3.6 は edi_sent_at の有無で判定するとし、batch-and-integration.md §7 は「BATCH-02 実行中の更新の扱いは詳細設計で定める」と先送りしている。BUG-1015 と同型
+AMB-K07,ambiguity,月次締め当日に登録された検収の計上月度が未定義,,締め;検収|計上;当日|受付時刻|9:00|境界|月度,B,basic-design.md §3.8 と batch-and-integration.md §5 は締め後の抑止だけを書く。締め当日の何時を境にするかは operation-manual.md §5 の未文書化の申し合わせしかない
+AMB-K08,ambiguity,申請者の異動・退職時に進行中の申請を誰が引き継ぐかが未定義,,異動|退職;引き継|後任|担当者変更|移管|滞留,C,設計文書に記述がなく、operation-manual.md §2 に「口頭で引き継ぐ」とだけある。requester_id の付け替え手段も画面にない
+AMB-K09,ambiguity,分割納品(一部検収)時の状態が未定義,,分納|分割納品|一部検収|部分検収|検収数量|received_quantity;状態|検収済|received|遷移|残り,B,screen-spec.md SCR-06 は検収数量を発注数量以下で許すのに、basic-design.md §3.7 は検収登録で一律 received にする。残数の追跡手段がない
+AMB-K10,ambiguity,部門長が自分で起票した場合の承認経路が未定義,,同一|本人|自分|自身|自部門長;承認;起票|申請,B,requirements.md BR-05 は起票者と承認者の分離を求めるが、部門長自身が申請者になる経路の扱いが設計にない
+AMB-K11,ambiguity,年度をまたぐ申請の予算計上年度が未定義,,年度;予算|計上;跨|またぎ|翌年度|3月|4月,C,requirements.md BR-03 は月度しか定めていない。operation-manual.md §6 は「4月に起こし直す」現場運用を書くが PRQ の仕様に反映されていない。BUG-1024 は採番の年度境界で顕在化している
+AMB-K12,ambiguity,取消ボタンの活性条件が基本設計の取消可能状態と不一致,,取消;ordered|発注済;活性|ボタン|画面|不一致|矛盾|scr-03,A,screen-spec.md SCR-03 は ordered でも取消ボタンを活性にするが、basic-design.md §3.3 と BR-04 は発注済み以降の取消を認めていない

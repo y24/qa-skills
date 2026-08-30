@@ -1,0 +1,14 @@
+id,category,title,target,match,difficulty,rationale
+TRN-K01,transition,(なし)→下書き 新規作成,,下書き|draft;新規作成|起票|作成,A,basic-design.md §4 遷移1
+TRN-K02,transition,下書き→承認待ち 提出,,下書き|draft;承認待ち|submitted;提出|申請,A,basic-design.md §4 遷移2
+TRN-K03,transition,承認待ち→差戻し 差戻し,,承認待ち|submitted;差戻|returned,A,basic-design.md §4 遷移3
+TRN-K04,transition,差戻し→承認待ち 再提出,,差戻|returned;再提出|再申請,A,basic-design.md §4 遷移4
+TRN-K05,transition,承認待ち→承認済み 承認完了,,承認待ち|submitted;承認済|approved,A,basic-design.md §4 遷移5。二段階承認では step2 の完了が契機になる
+TRN-K06,transition,承認待ち→失効 自動失効バッチ,,承認待ち|submitted;失効|expired,A,basic-design.md §4 遷移6・batch-and-integration.md BATCH-01
+TRN-K07,transition,承認待ち→取消 申請者の取下げ,,承認待ち|submitted;取消|取下|canceled,A,basic-design.md §4 遷移7
+TRN-K08,transition,下書き→取消,,下書き|draft;取消|canceled,A,basic-design.md §4 遷移8
+TRN-K09,transition,差戻し→取消,,差戻|returned;取消|canceled,A,basic-design.md §4 遷移9
+TRN-K10,transition,承認済み→発注済み 発注確定,,承認済|approved;発注済|ordered,A,basic-design.md §4 遷移10
+TRN-K11,transition,承認済み→取消 購買担当による取消,,承認済|approved;取消|canceled,A,basic-design.md §4 遷移11。実行者が申請者ではなく購買担当である点が要点
+TRN-K12,transition,発注済み→検収済み 検収登録,,発注済|ordered;検収済|received,A,basic-design.md §4 遷移12
+TRN-K13,transition,検収済み→計上済み 会計連携バッチ,,検収済|received;計上済|closed,A,basic-design.md §4 遷移13・batch-and-integration.md BATCH-03

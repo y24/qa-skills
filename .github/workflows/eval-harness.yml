@@ -1,0 +1,72 @@
+# 評価ハーネス(eval/)の自己検査
+#
+# eval/ はメンテナー側の改善ループの資産であり、配布されるスキルセット
+# (.github/skills/)には含まれない。スキルセットの検証は qa-artifacts.yml が
+# 担当し、こちらは触らない — 依存の向きは eval/ → skills の一方向に保つ。
+#
+# **採点が誤って高い点を返すようになると改善ループ全体が黙って無効になる**ため、
+# 仕込んだものを拾えること・拾えないものを拾ったことにしないことを毎回確かめる
+# (qa-artifacts.yml の verifier-selftest と同じ理由)。
+#
+# eval/ を持たないリポジトリ(スキルセットだけをコピーした利用側)では、
+# 何もせずスキップする。
+
+name: 評価ハーネスの自己検査
+
+on:
+  pull_request:
+    paths:
+      - 'eval/**'
+  push:
+    branches: [main]
+    paths:
+      - 'eval/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  eval-harness:
+    name: 採点ロジックと答えキーの検査
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: eval/ の有無を確認する
+        id: guard
+        run: |
+          if [ -d eval/scripts ]; then
+            echo "present=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=0" >> "$GITHUB_OUTPUT"
+            echo "eval/ がないためスキップします(スキルセットのみのリポジトリでは通常の状態)"
+          fi
+
+      - name: 採点ロジックと答えキーの検査
+        if: steps.guard.outputs.present == '1'
+        run: |
+          set -e
+          python -m compileall -q eval/scripts
+          for key in eval/answer-key/*/; do
+            python eval/scripts/eval_score.py selftest --key "$key"
+          done
+
+      - name: 答えキーがフィクスチャに混ざっていないこと
+        if: steps.guard.outputs.present == '1'
+        run: |
+          set -e
+          # フィクスチャは評価ランの入力になる。ここに答えキーのIDが現れたら
+          # 答えを見せて解かせることになり、検出率が意味を失う(eval/README.md §4)
+          if grep -rlE '(AMB|SCN|TRN|HND|REG)-K[0-9]' eval/fixtures/; then
+            echo "::error::フィクスチャに答えキーのIDが混入しています"
+            exit 1
+          fi
+          echo "OK: フィクスチャに答えは含まれていません"

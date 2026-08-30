@@ -1,0 +1,11 @@
+id,category,title,target,match,difficulty,rationale
+SCN-K01,scenario,正常フロー(起票→承認→発注→検収→会計計上),,正常;検収|計上|closed|received,A,業務が最後まで通る1本。ここが無いと後続の観点が業務結果に接地しない
+SCN-K02,scenario,二段階承認を要する高額申請の代替フロー,,二段階|step2|調達部長|10万|100000;承認,A,basic-design.md §3.1。承認経路が分岐する唯一の条件
+SCN-K03,scenario,差戻しを受けて修正・再提出する例外フロー,,差戻;再提出|再申請|修正,A,basic-design.md §3.2
+SCN-K04,scenario,自動失効した申請を起こし直す回復フロー,,失効|expired;再提出|再申請|起こし直|複製|新規起票|回復,B,AMB-K04 と対。失効で終わりにせず業務がどう続くかを問う
+SCN-K05,scenario,発注確定前の取消フロー,,取消|取下;承認済|approved|発注前,A,basic-design.md §3.3。購買担当が取り消す点が要点
+SCN-K06,scenario,EDI送信バッチ実行中に取消要求が入る同時実行シナリオ,,edi|送信;取消;同時|競合|実行中|バッチ,B,AMB-K06 と対。BUG-1006・BUG-1015 の再発型
+SCN-K07,scenario,他部門の申請を承認しようとする権限違反シナリオ,,他部門|部門外|自部門以外|権限違反|403;承認,A,rbac.md §2・§4。BUG-1002・BUG-1012 の再発型
+SCN-K08,scenario,申請者の異動により進行中の申請が滞留するシナリオ,,異動|退職|不在;滞留|引き継|放置|失効,C,AMB-K08 と対。資料に無く operation-manual.md の現場運用からしか導けない
+SCN-K09,scenario,月次締めの境界で検収が登録されるシナリオ,,締め;検収|計上;当日|境界|月度|翌月,B,AMB-K07 と対。BUG-1004・BUG-1022 の再発型
+SCN-K10,scenario,承認者不在期間に代理承認者が処理するシナリオ,,代理;承認|不在,B,basic-design.md §3.5。AMB-K05 の権限範囲と接続する

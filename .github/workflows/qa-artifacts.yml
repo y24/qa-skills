@@ -81,13 +81,6 @@ jobs:
             python "$SCRIPTS/$s" --help > /dev/null
           done
 
-      - name: hook 配線がずれていないこと
-        run: |
-          set -e
-          # hook 設定は形式が違うため Copilot 用と Claude Code 用の2つある。
-          # ずれると片方の環境でだけゲートが静かに効かなくなる(hooks.md §3)
-          python .github/hooks/check_hooks_config.py
-
       - name: PyYAML を入れる(差分テスト専用。実行時の依存ではない)
         run: python -m pip install --quiet pyyaml
 
@@ -457,6 +450,40 @@ jobs:
           python "$SCRIPTS/render_md.py" "$FX/qa-output/yml/30-test-viewpoint.yaml" > /dev/null
           python "$SCRIPTS/gate_check.py" "$FX/qa-output/yml" > /dev/null
           echo "OK: 再生成すれば通ります"
+
+      - name: 意図モデルの複数台帳とシナリオ詳細が破綻しないこと
+        run: |
+          set -e
+          # 意図モデルは ACT/STT/TRN/BG/HO/US など台帳を6つ以上持つ。
+          # シナリオは同じ台帳を一覧・詳細・提案の3通りに描き分ける。
+          # 生成された Markdown が lint を通ることまで確かめる
+          for f in 10-intent-recovery 11-scenario-design; do
+            cp "tests/fixtures/$f.yaml" "$FX/qa-output/yml/$f.yaml"
+            python "$SCRIPTS/validate_artifact.py" "$FX/qa-output/yml/$f.yaml"
+            python "$SCRIPTS/render_md.py" "$FX/qa-output/yml/$f.yaml"
+            python "$SCRIPTS/lint_output.py" "$FX/qa-output/yml/$f.md"
+          done
+          # proposed はセクション1・2に現れず、提案シナリオの節にだけ出ること
+          md="$FX/qa-output/yml/11-scenario-design.md"
+          sec3=$(grep -n "^## 3\." "$md" | cut -d: -f1)
+          sc02=$(grep -n "SC-02" "$md" | head -1 | cut -d: -f1)
+          [ "$sc02" -gt "$sec3" ]             || { echo '::error::proposed のシナリオが一覧・詳細に混ざっています(conventions.md §5-3)'; exit 1; }
+          echo "OK: 複数台帳・詳細節・提案の分離が成立しています"
+
+      - name: 業務オラクル保有率が推定ではなく実測になること
+        run: |
+          set -e
+          out=$(python "$SCRIPTS/metrics.py" "$FX/qa-output/yml" --json)
+          echo "$out" | python -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          k = [x for x in d if 'オラクル' in x][0]
+          note = d[k].get('注記', '')
+          if '実測' not in note:
+              print('::error::構造化成果物があるのに推定にフォールバックしています:', note)
+              sys.exit(1)
+          print('OK:', json.dumps(d[k], ensure_ascii=False))
+          "
 
   qa-artifacts:
     name: QA成果物のゲート検証

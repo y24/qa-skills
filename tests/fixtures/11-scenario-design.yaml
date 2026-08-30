@@ -1,0 +1,65 @@
+meta:
+  target: 請求書の申請・承認
+  run_mode: process
+scenarios:
+  - id: SC-01
+    name: 起票から承認までの正常フロー
+    goal: BG-01
+    kind: 正常
+    summary: 起票者が申請し承認者が承認する
+    actors: [ACT-01, ACT-02]
+    priority: High
+    traces_to: [BG-01, TRN-01, HO-01]
+    precondition: 起票者に作成権限があり、承認者が在籍している
+    trigger: 起票者が申請ボタンを押す
+    steps:
+      - num: "1"
+        actor: ACT-01
+        operation: 申請
+        state_before: 下書き
+        state_after: 申請中
+        handoff: HO-01
+      - num: "2"
+        actor: ACT-02
+        operation: 承認
+        state_before: 申請中
+        state_after: 承認済み
+        handoff: "-"
+    oracle: db
+    oracle_detail: invoices.status が approved、かつ invoice_sync に1件連携される
+    downstream: 会計システムへ連携され、月次集計に反映される
+    evidence_level: confirmed
+    sources: [basic-design.md#3.2]
+  - id: SC-02
+    name: 承認者退職後の申請
+    goal: BG-01
+    kind: 例外
+    summary: 承認者が退職しており引き継ぎが失敗する
+    actors: [ACT-01]
+    priority: High
+    traces_to: [HO-01]
+    precondition: 承認者が退職済み
+    trigger: 起票者が申請ボタンを押す
+    steps:
+      - num: "1"
+        actor: ACT-01
+        operation: 申請
+        state_before: 下書き
+        state_after: 申請中
+        handoff: HO-01(失敗)
+    oracle: db
+    oracle_detail: 承認待ち一覧に出ず、3営業日後も status が submitted のまま
+    evidence_level: hypothesis
+    derivation: proposed
+    rationale: 過去障害 BUG-1234 と同じ引き継ぎ失敗の型
+narrative:
+  coverage: |
+    | 軸 | 全体 | 到達 | 未到達の要素 |
+    |---|---|---|---|
+    | 状態 | 2 | 2 | なし |
+  excluded: |
+    該当なし
+  undefined_expected: |
+    該当なし
+  missing: |
+    差戻し後の再申請フローが資料に無い。

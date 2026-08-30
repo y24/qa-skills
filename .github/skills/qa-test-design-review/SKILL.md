@@ -80,7 +80,16 @@ review-checklist.md の基準で S/A/B/C/D を付け、評価理由を書く。
 
 指摘ごとに「修正する / 修正しない(理由あり) / 保留」を選択式でユーザーに確認し、「修正する」が選ばれたものは修正を実施する。仕様由来の指摘(AMB切り出し済み)は「保留(仕様確認待ち: AMB-XXX)」として記録し、**設計者への修正指示にしない**。確認質問を確認先に回すのはユーザーの判断。
 
-## 出力フォーマット(42-test-design-review.md)
+## 出力フォーマット
+
+**この成果物は台帳系なので `42-test-design-review.yaml` に書く**(conventions.md §6-2)。Markdown は生成物であり、直接書かない。
+
+1. `42-test-design-review.yaml` を書く。フィールド・必須・許容値の定義元は [_shared/schemas/test-design-review.yaml](../_shared/schemas/test-design-review.yaml)
+2. `validate_artifact.py` で規約検証 → `render_md.py` で Markdown を生成(コマンドは conventions.md §6-2)
+
+`derivation: proposed` の別表・別節への振り分けはレンダラが機械的に行う。手で分けない。
+
+生成される Markdown は次の形になる(**この形を手で書かない**)。
 
 ```markdown
 # テスト設計レビュー: <対象>

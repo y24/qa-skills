@@ -15,7 +15,6 @@ SKILL.md の手順・hooks(`hook_entry.py`)・CI のいずれからも**この�
     python gate_check.py qa-output/my-session --unapproved     # 未承認ゲートの分だけ
     python gate_check.py --files qa-output/my-session/30-test-viewpoint.md
     python gate_check.py qa-output/my-session --json
-    python gate_check.py qa-output/my-session --warn-only      # 常に exit 0(段階導入用)
     python gate_check.py qa-output/my-session --lint-only      # 書式だけ見る
 
 ゲートと成果物の対応:
@@ -30,7 +29,7 @@ Quick モードの扱い(skill-map.md §2「網羅を主張しないモードに
 
 exit code:
     0 = 未解消なし(WARN と trace の info は含みうる)
-    1 = lint ERROR または trace の検出あり(--warn-only 指定時は 0 に落とす)
+    1 = lint ERROR / スキーマ違反 / trace の検出 / Markdown のずれ のいずれか
     2 = 使用法エラー(ディレクトリ不存在等)
 """
 
@@ -330,7 +329,6 @@ def build_report(args, session_dir, session, targets, reason, excluded,
         },
         "render": {"findings": render_findings},
         "failed": failed,
-        "warn_only": bool(args.warn_only),
         "note": (
             "書式とID突合の機械チェック。指摘の妥当性・網羅性は判定しない"
             "(scripts/README.md 責務の境界)"
@@ -417,11 +415,8 @@ def print_text_report(rep):
         if rep["render"]["findings"]:
             parts.append("render ずれ {} 件".format(len(rep["render"]["findings"])))
         detail = " / ".join(parts)
-        if rep["warn_only"]:
-            print("判定: 未解消あり({})(--warn-only のため exit 0)".format(detail))
-        else:
-            print("判定: **BLOCK** — {} を解消してから次へ進むこと(conventions.md §9)"
-                  .format(detail))
+        print("判定: **BLOCK** — {} を解消してから次へ進むこと(conventions.md §9)"
+              .format(detail))
     else:
         print("判定: PASS(書式・突合の範囲で未解消なし)")
 
@@ -453,8 +448,6 @@ def main(argv=None):
                         help="未承認・未スキップのゲートに属する成果物だけを検証する")
     parser.add_argument("--lint-only", action="store_true", dest="lint_only",
                         help="trace の検出を失敗に数えない(書式だけを見る)")
-    parser.add_argument("--warn-only", action="store_true",
-                        help="検出があっても exit 0 を返す(段階導入時の慣らし運転用)")
     parser.add_argument("--json", action="store_true", dest="as_json",
                         help="機械可読JSONで出力する")
     args = parser.parse_args(argv)
@@ -486,7 +479,7 @@ def main(argv=None):
             print(json.dumps(rep, ensure_ascii=False, indent=2))
         else:
             print_text_report(rep)
-        return 0 if (args.warn_only or not rep["failed"]) else 1
+        return 0 if not rep["failed"] else 1
 
     if not args.session_dir:
         parser.error("セッションディレクトリまたは --files を指定してください")
@@ -532,7 +525,7 @@ def main(argv=None):
         print(json.dumps(rep, ensure_ascii=False, indent=2))
     else:
         print_text_report(rep)
-    return 0 if (args.warn_only or not rep["failed"]) else 1
+    return 0 if not rep["failed"] else 1
 
 
 if __name__ == "__main__":

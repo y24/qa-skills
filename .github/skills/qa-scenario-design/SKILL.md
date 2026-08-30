@@ -127,7 +127,16 @@ business-scenario-patterns.md の各パターンを、対象の業務ゴール�
 | 業務ゴールが多く全件設計すると膨大 | リスク評価(`20`)の High から着手することを選択式で提案し、未設計の BG を「未設計」として一覧に残す。件数を黙って減らさない |
 | 外部連携の失敗時挙動が資料に無い | 例外シナリオを削除せず、「期待結果が未定義」として残し AMB として qa-spec-review に回す |
 
-## 出力フォーマット(11-scenario-design.md)
+## 出力フォーマット
+
+**この成果物は台帳系なので `11-scenario-design.yaml` に書く**(conventions.md §6-2)。Markdown は生成物であり、直接書かない。
+
+1. `11-scenario-design.yaml` を書く。フィールド・必須・許容値の定義元は [_shared/schemas/scenario-design.yaml](../_shared/schemas/scenario-design.yaml)
+2. `validate_artifact.py` で規約検証 → `render_md.py` で Markdown を生成(コマンドは conventions.md §6-2)
+
+`derivation: proposed` の別表・別節への振り分けはレンダラが機械的に行う。手で分けない。
+
+生成される Markdown は次の形になる(**この形を手で書かない**)。
 
 ```markdown
 # 業務シナリオ: <対象>
@@ -136,7 +145,7 @@ business-scenario-patterns.md の各パターンを、対象の業務ゴール�
 > 設計対象外とした種別: (あれば理由付きで)
 
 ## 1. シナリオ一覧
-| ID | 業務ゴール(BG) | 種別 | 概要 | 関与Actor | 優先度 | traces_to | derivation |
+| ID | シナリオ名 | 業務ゴール(BG) | 種別 | 概要 | 関与Actor | 優先度 | traces_to | derivation |
 
 ## 2. シナリオ詳細
 ### SC-NN: <シナリオ名>
@@ -152,7 +161,7 @@ business-scenario-patterns.md の各パターンを、対象の業務ゴール�
 - **derivation / evidence_level / 出典**
 
 ## 3. 提案シナリオ(derivation: proposed)
-| ID | シナリオ | 提案の根拠(BUG-ID/ログ/経験則) | 採否判定 |
+(レンダラが `derivation: proposed` のシナリオだけをここに出す。セクション1・2には現れない)
 
 ## 4. カバレッジ
 | 軸 | 全体 | 到達 | 未到達の要素 |

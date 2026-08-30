@@ -1,0 +1,85 @@
+meta:
+  target: 請求書の申請・承認
+  run_mode: process
+actors:
+  - id: ACT-01
+    actor: 起票者
+    kind: 人
+    can_do: [請求書の作成, 申請, 取消]
+    sources: [basic-design.md#2.1]
+  - id: ACT-02
+    actor: 承認者
+    kind: 人
+    can_do: [承認, 差戻し]
+    sources: [roles.md#1]
+states:
+  - id: STT-01
+    object: 請求書
+    state: 下書き
+    allowed: [編集, 申請]
+    terminal: "no"
+    sources: [basic-design.md#3.1]
+  - id: STT-02
+    object: 請求書
+    state: 申請中
+    allowed: [承認, 差戻し, 取消]
+    terminal: "no"
+    sources: [basic-design.md#3.1]
+transitions:
+  - id: TRN-01
+    from_state: STT-01
+    operation: 申請
+    to_state: STT-02
+    actor: ACT-01
+    trigger: 申請ボタン
+    guard: 必須項目が充足していること
+    sources: [basic-design.md#3.2]
+goals:
+  - id: BG-01
+    actor: ACT-01
+    goal: 請求書を承認まで通す
+    traces_to: [TRN-01]
+    sources: [requirements.md#1.1]
+    evidence_level: confirmed
+handoffs:
+  - id: HO-01
+    traces_to: [TRN-01]
+    from_actor: ACT-01
+    to_actor: ACT-02
+    notice_by: 承認待ち一覧に表示される
+    fails_when: 承認者が退職済みで一覧に出ない
+    deadline: 3営業日
+    derivation: inferred
+impacts:
+  - traces_to: [TRN-01]
+    target: 会計システム連携
+    visible_on_screen: "no"
+    verify_by: 連携テーブル invoice_sync
+    sources: [basic-design.md#5]
+stories:
+  - id: US-01
+    actor: ACT-01
+    story: 起票者として請求書を申請したい
+    value: 支払を期日までに完了させるため
+    traces_to: [BG-01, TRN-01]
+    sources: [requirements.md#1.1]
+  - id: US-02
+    actor: ACT-02
+    story: 承認者として差戻し理由を残したい
+    value: 再申請の手戻りを減らすため
+    traces_to: [BG-01]
+    derivation: proposed
+questions:
+  - num: "1"
+    question: 承認者が退職済みのとき申請はどうなるか
+    options: [A. 申請不可, B. 代理承認者へ回る]
+    answered_by: 業務担当
+    blocks: HO-01 の失敗条件とシナリオSC
+narrative:
+  transition_diagram: |
+    ```mermaid
+    stateDiagram-v2
+        下書き --> 申請中: 申請
+    ```
+  missing: |
+    差戻し後の再申請フローが資料に無い。

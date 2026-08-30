@@ -107,6 +107,16 @@ def schema_for(path):
     return None
 
 
+def ledgers_of(schema):
+    """スキーマの台帳定義を list で返す。1成果物が複数の台帳を持つことがある
+    (例: 意図モデルは ACT / STT / TRN / BG / HO / US の6つ)。"""
+    if "ledgers" in schema and isinstance(schema["ledgers"], list):
+        return schema["ledgers"]
+    if "ledger" in schema:
+        return [schema["ledger"]]
+    return []
+
+
 def field_value(record, field):
     """レコードからフィールド値を取り出す。未設定なら default(なければ "")。"""
     v = record.get(field["name"], "")
@@ -123,7 +133,7 @@ def is_empty(v):
 # ルール
 # ---------------------------------------------------------------------------
 
-def rule_unique_ids(result, schema, records):
+def rule_unique_ids(result, ledger, records):
     seen = {}
     for idx, rec in enumerate(records, start=1):
         rid = str(rec.get("id", "")).strip()
@@ -137,8 +147,8 @@ def rule_unique_ids(result, schema, records):
             seen[rid] = idx
 
 
-def rule_id_pattern(result, schema, records):
-    for field in schema["ledger"]["fields"]:
+def rule_id_pattern(result, ledger, records):
+    for field in ledger["fields"]:
         pat = field.get("pattern")
         if not pat:
             continue
@@ -154,10 +164,10 @@ def rule_id_pattern(result, schema, records):
                                .format(field["name"], one, pat))
 
 
-def rule_required_fields(result, schema, records):
+def rule_required_fields(result, ledger, records):
     for idx, rec in enumerate(records, start=1):
         rid = str(rec.get("id", "")).strip() or "{}件目".format(idx)
-        for field in schema["ledger"]["fields"]:
+        for field in ledger["fields"]:
             if not _truthy(field.get("required", "no")):
                 continue
             if is_empty(field_value(rec, field)):
@@ -166,10 +176,10 @@ def rule_required_fields(result, schema, records):
                            .format(field["name"], field.get("label", field["name"])))
 
 
-def rule_enum_values(result, schema, records):
+def rule_enum_values(result, ledger, records):
     for idx, rec in enumerate(records, start=1):
         rid = str(rec.get("id", "")).strip() or "{}件目".format(idx)
-        for field in schema["ledger"]["fields"]:
+        for field in ledger["fields"]:
             allowed = field.get("enum")
             if not allowed:
                 continue
@@ -183,9 +193,9 @@ def rule_enum_values(result, schema, records):
                                .format(field["name"], one, " / ".join(allowed)))
 
 
-def rule_explicit_requires_sources(result, schema, records):
+def rule_explicit_requires_sources(result, ledger, records):
     """conventions.md §5-3: explicit(既定)の項目に sources は必須。"""
-    names = {f["name"] for f in schema["ledger"]["fields"]}
+    names = {f["name"] for f in ledger["fields"]}
     if "sources" not in names or "derivation" not in names:
         return
     for idx, rec in enumerate(records, start=1):
@@ -201,8 +211,8 @@ def rule_explicit_requires_sources(result, schema, records):
                 "なく inferred か proposed です(conventions.md §5-3)")
 
 
-def rule_no_vague_expected(result, schema, records):
-    targets = [f["name"] for f in schema["ledger"]["fields"]
+def rule_no_vague_expected(result, ledger, records):
+    targets = [f["name"] for f in ledger["fields"]
                if "期待結果" in f.get("label", "") or f["name"] == "expected"]
     for idx, rec in enumerate(records, start=1):
         rid = str(rec.get("id", "")).strip() or "{}件目".format(idx)
@@ -262,25 +272,50 @@ def validate(path):
                    "トップレベルはマッピングである必要があります")
         return result
 
-    ledger_key = schema["ledger"]["key"]
-    records = data.get(ledger_key, "")
-    if is_empty(records):
-        result.add("ERROR", None, "structure",
-                   "台帳 `{}` がありません(または空です)".format(ledger_key))
-        return result
-    if not isinstance(records, list) or not all(isinstance(r, dict) for r in records):
-        result.add("ERROR", None, "structure",
-                   "`{}` は `- key: value` のリストである必要があります".format(ledger_key))
+    ledgers = ledgers_of(schema)
+    if not ledgers:
+        result.add("ERROR", None, "schema", "スキーマに台帳(ledgers)の定義がありません")
         return result
 
-    # 未知のフィールドは警告(綴り間違いの検出。落としはしない)
-    known = {f["name"] for f in schema["ledger"]["fields"]}
-    for idx, rec in enumerate(records, start=1):
-        rid = str(rec.get("id", "")).strip() or "{}件目".format(idx)
-        for key in rec:
-            if key not in known:
-                result.add("WARN", rid, "unknown_field",
-                           "スキーマにないフィールドです: `{}`".format(key))
+    usable = []
+    for ledger in ledgers:
+        key = ledger["key"]
+        records = data.get(key, "")
+        optional = _truthy(ledger.get("optional", "no"))
+        if is_empty(records):
+            if not optional:
+                result.add("ERROR", None, "structure",
+                           "台帳 `{}` がありません(または空です)".format(key))
+            continue
+        if not isinstance(records, list) or not all(isinstance(r, dict) for r in records):
+            result.add("ERROR", None, "structure",
+                       "`{}` は `- key: value` のリストである必要があります".format(key))
+            continue
+
+        # 未知のフィールドは警告(綴り間違いの検出。落としはしない)
+        known = set()
+        for f in ledger["fields"]:
+            known.add(f["name"])
+        for idx, rec in enumerate(records, start=1):
+            rid = str(rec.get("id", "")).strip() or "{}[{}件目]".format(key, idx)
+            for k in rec:
+                if k not in known:
+                    result.add("WARN", rid, "unknown_field",
+                               "スキーマにないフィールドです: `{}`(台帳 {})".format(k, key))
+        usable.append((ledger, records))
+
+    # 台帳をまたいだID重複も見る(conventions.md §6-1 のIDは成果物内で一意)
+    seen_ids = {}
+    for ledger, records in usable:
+        for rec in records:
+            rid = str(rec.get("id", "")).strip()
+            if not rid:
+                continue
+            if rid in seen_ids and seen_ids[rid] != ledger["key"]:
+                result.add("ERROR", rid, "unique_ids",
+                           "IDが台帳をまたいで重複しています({} と {})"
+                           .format(seen_ids[rid], ledger["key"]))
+            seen_ids[rid] = ledger["key"]
 
     # 叙述セクションの欠落は警告(conventions.md §6「該当なしと1行書く」)
     for sec in schema.get("sections", []):
@@ -301,7 +336,8 @@ def validate(path):
                        "未知のルールです: {}(validate_artifact.py に実装がありません)"
                        .format(name))
             continue
-        fn(result, schema, records)
+        for ledger, records in usable:
+            fn(result, ledger, records)
     return result
 
 

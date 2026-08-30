@@ -47,8 +47,12 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
       domain-glossary.md                # ★ドメイン用語の蓄積場所
     hooks.md                # ★hooksが何を保証するかの唯一の定義元
     schemas/                # ★台帳系成果物のスキーマ(フィールド・必須・許容値・MD構成)
+      intent-recovery.yaml  #   意図モデル(ACT/STT/TRN/BG/HO/US など台帳6つ)
+      scenario-design.yaml  #   業務シナリオ(一覧・詳細・提案を1台帳から描き分ける)
       test-viewpoint.yaml
       test-case.yaml
+      spec-review.yaml
+      test-design-review.yaml
     scripts/                # 定型処理の補助スクリプト(Python 3.9+ 標準ライブラリのみ)
       qa_session.py         # qa-session.json の作成・更新・再開判定
       defect_stats.py       # 不具合CSVの正規化雛形とラベル集計
@@ -68,10 +72,10 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
 
 .github/hooks/              # 品質ゲートの配線(Copilot CLI / cloud agent / VS Code)
   qa-quality-gates.json
-  check_hooks_config.py     # 2つの設定ファイルがずれていないかの検査
 .claude/settings.json       # 同じ配線(Claude Code。形式が違うだけで呼ぶものは同じ)
 .github/workflows/
   qa-artifacts.yml          # CI。成果物の検証と、検証層自身の自己検査
+tests/fixtures/             # CIが使う構造化成果物のサンプル
 ```
 
 ## 設計原則
@@ -211,12 +215,11 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
 
 判定の実装は [gate_check.py](.github/skills/_shared/scripts/gate_check.py) の**1本だけ**で、
 SKILL.md の手順も hooks も CI も同じものを呼ぶ。hook 設定は各ツールの形式が違うため
-2ファイルあるが、配線を持つだけで判定ロジックは持たない
-(ずれ検出: `python .github/hooks/check_hooks_config.py`)。
+2ファイルあるが、配線を持つだけで判定ロジックは持たない。
 
-**現在は全 hook が `--warn-only` 付き(慣らし運転中)。** 検出をAIに伝えるだけで
-ブロックはしない。1〜2セッション回して誤検出が出ないことを確認してから外す
-(手順は [hooks.md §5](.github/skills/_shared/hooks.md))。
+**止めてよいのは誤検出しない検査だけ。** 誤検出が出たら hook 設定ではなく検査側を
+直す(hook で緩めると環境ごとに強制力が変わる)。無限ループを防ぐため、Stop の
+連続ブロックには上限がある — 詳細は [hooks.md](.github/skills/_shared/hooks.md)。
 
 hooks が使えない環境でも、[gate_check.py](.github/skills/_shared/scripts/gate_check.py)
 を手順から呼ぶ層と CI 層は動く。4層の防御の全体像は

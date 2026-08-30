@@ -1,0 +1,139 @@
+# 業務シナリオ(11-scenario-design)のスキーマ
+#
+# 出力フォーマットの定義元は qa-scenario-design/SKILL.md。
+# **このスキルセットの主目的の成果物**であり、観点・ケースはここの SC を指す。
+#
+# 台帳は1つ(SC)だが、セクション1は一覧表、セクション2は同じ台帳の詳細展開、
+# セクション3は proposed だけ、という3通りの見せ方をする。
+
+artifact: scenario-design
+number: "11"
+title: 業務シナリオ
+
+ledgers:
+  - key: scenarios
+    id_prefix: SC
+    detail_title: name
+    fields:
+      - name: id
+        label: ID
+        required: yes
+        pattern: "^SC-\\d+$"
+      - name: name
+        label: シナリオ名
+        required: yes
+        detail: no
+      - name: goal
+        label: 業務ゴール(BG)
+        required: yes
+      - name: kind
+        label: 種別
+        required: yes
+        enum: [正常, 代替, 例外, 回復, 取消, タイムアウト, 同時実行, 権限違反]
+      - name: summary
+        label: 概要
+        required: yes
+      - name: actors
+        label: 関与Actor
+        type: list
+        required: yes
+      - name: priority
+        label: 優先度
+        required: yes
+        enum: [High, Medium, Low]
+      - name: traces_to
+        label: traces_to
+        type: list
+        required: yes
+      - name: derivation
+        label: derivation
+        enum: [explicit, inferred, proposed]
+        default: explicit
+      # --- ここから下は詳細節でだけ出す(一覧表には出さない)---
+      - name: precondition
+        label: 前提条件
+        required: yes
+        render: no
+      - name: trigger
+        label: トリガー
+        required: yes
+        render: no
+      - name: steps
+        label: 流れ
+        type: table
+        required: yes
+        render: no
+        fields:
+          - name: num
+            label: "#"
+          - name: actor
+            label: Actor
+          - name: operation
+            label: 操作
+          - name: state_before
+            label: 操作前の状態
+          - name: state_after
+            label: 操作後の状態
+          - name: handoff
+            label: 引き継ぎ
+      - name: checkpoints
+        label: チェックポイント
+        type: list
+        render: no
+      # 業務オラクル。画面の成功表示だけで合格を判定しないための必須項目
+      - name: oracle
+        label: 業務オラクル
+        required: yes
+        render: no
+        enum: [screen, db, api, batch, external, none]
+      - name: oracle_detail
+        label: 業務オラクルの内容
+        required: yes
+        render: no
+      - name: downstream
+        label: 後続影響
+        render: no
+      - name: evidence_level
+        label: evidence_level
+        enum: [confirmed, likely, hypothesis]
+        render: no
+      - name: sources
+        label: 出典
+        type: list
+        render: no
+      - name: rationale
+        label: 提案の根拠
+        render: no
+
+rules:
+  - unique_ids
+  - id_pattern
+  - required_fields
+  - enum_values
+  - explicit_requires_sources
+
+sections:
+  - num: 1
+    title: シナリオ一覧
+    from: ledger.scenarios
+    filter: not_proposed
+  - num: 2
+    title: シナリオ詳細
+    from: detail.scenarios
+    filter: not_proposed
+  - num: 3
+    title: "提案シナリオ(derivation: proposed)"
+    from: ledger.scenarios
+    filter: proposed
+  - num: 4
+    title: カバレッジ
+    from: narrative.coverage
+  - num: 5
+    title: 対象外としたシナリオとその理由
+    from: narrative.excluded
+  - num: 6
+    title: 期待結果が定義できなかったシナリオ
+    from: narrative.undefined_expected
+  - num: 7
+    title: 不足情報
+    from: narrative.missing

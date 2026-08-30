@@ -11,59 +11,59 @@ mode_note: |
   ⚠️ これは入力された情報の展開であり、網羅ではない。入力に書かれていない
   業務知識・状態遷移・ロール間の引き継ぎ・例外は含まれない。
 
-ledger:
-  key: cases
-  id_prefix: TC
-  fields:
-    - name: id
-      label: ID
-      required: yes
-      pattern: "^TC-\\d+$"
-    - name: traces_to
-      label: 観点ID
-      type: list
-      required: yes
-    - name: title
-      label: タイトル
-      required: yes
-    - name: precondition
-      label: 前提条件
-      required: yes
-    - name: steps
-      label: 手順
-      type: list
-      required: yes
-      # 手順は1行ずつ読めないと使えないので、セル内で改行する
-      join: "<br>"
-    - name: inputs
-      label: 入力値
-      type: list
-    - name: expected
-      label: 期待結果
-      required: yes
-    - name: verify_by
-      label: 確認手段
-      required: yes
-    - name: priority
-      label: 優先度
-      required: yes
-      enum: [High, Medium, Low]
-    - name: note
-      label: 備考
-    - name: oracle
-      label: オラクル
-      enum: [screen, db, api, batch, external, none]
-      render: no
-    - name: evidence_level
-      enum: [confirmed, likely, hypothesis]
-      render: no
-    - name: derivation
-      enum: [explicit, inferred, proposed]
-      default: explicit
-      render: no
-    - name: sources
-      type: list
-      render: no
+ledgers:
+  - key: cases
+    id_prefix: TC
+    fields:
+      - name: id
+        label: ID
+        required: yes
+        pattern: "^TC-\\d+$"
+      - name: traces_to
+        label: 観点ID
+        type: list
+        required: yes
+      - name: title
+        label: タイトル
+        required: yes
+      - name: precondition
+        label: 前提条件
+        required: yes
+      - name: steps
+        label: 手順
+        type: list
+        required: yes
+        # 手順は1行ずつ読めないと使えないので、セル内で改行する
+        join: "<br>"
+      - name: inputs
+        label: 入力値
+        type: list
+      - name: expected
+        label: 期待結果
+        required: yes
+      - name: verify_by
+        label: 確認手段
+        required: yes
+      - name: priority
+        label: 優先度
+        required: yes
+        enum: [High, Medium, Low]
+      - name: note
+        label: 備考
+      - name: oracle
+        label: オラクル
+        enum: [screen, db, api, batch, external, none]
+        render: no
+      - name: evidence_level
+        enum: [confirmed, likely, hypothesis]
+        render: no
+      - name: derivation
+        enum: [explicit, inferred, proposed]
+        default: explicit
+        render: no
+      - name: sources
+        type: list
+        render: no
 
 rules:
   - unique_ids
@@ -79,7 +79,7 @@ sections:
     from: narrative.summary
   - num: 2
     title: テストケース一覧
-    from: ledger
+    from: ledger.cases
   - num: 3
     title: 実行順序・依存関係の注意
     from: narrative.ordering

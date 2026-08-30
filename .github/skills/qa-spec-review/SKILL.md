@@ -68,7 +68,16 @@ High の項目には、可能なら**暫定解釈**(既存機能や慣例から�
 
 「確認に回す」の **Blocker が残ったままの場合、ゲートを待たずその場で**未解決 Blocker の存在を明示し、回答待ちでの中断を推奨する(conventions.md §4 のゲート外例外)。先へ進むにはユーザーが深刻度を下げる判定を行う必要がある。
 
-## 出力フォーマット(40-spec-review[-対象].md)
+## 出力フォーマット
+
+**この成果物は台帳系なので `40-spec-review.yaml` に書く**(conventions.md §6-2)。Markdown は生成物であり、直接書かない。
+
+1. `40-spec-review.yaml` を書く。フィールド・必須・許容値の定義元は [_shared/schemas/spec-review.yaml](../_shared/schemas/spec-review.yaml)
+2. `validate_artifact.py` で規約検証 → `render_md.py` で Markdown を生成(コマンドは conventions.md §6-2)
+
+`derivation: proposed` の別表・別節への振り分けはレンダラが機械的に行う。手で分けない。
+
+生成される Markdown は次の形になる(**この形を手で書かない**)。
 
 ```markdown
 # 仕様レビュー: <対象文書>

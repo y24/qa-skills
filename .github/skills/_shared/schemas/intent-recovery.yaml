@@ -1,0 +1,282 @@
+# 意図モデル(10-intent-recovery)のスキーマ
+#
+# 出力フォーマットの定義元は qa-intent-recovery/SKILL.md、ID体系は
+# conventions.md §6-1。**このスキルセットのID体系の源**であり、
+# シナリオ・観点・ケースはここのIDを traces_to で指す。
+#
+# 台帳が6つある(ACT / STT / TRN / BG / HO / US)。1成果物が複数の台帳を
+# 持つ最初の例。
+
+artifact: intent-recovery
+number: "10"
+title: 意図モデル
+mode_note: |
+  ⚠️ 状態遷移の網羅を主張しない。資料に無い遷移は「未観測」であり「存在しない」ではない。
+
+ledgers:
+  - key: actors
+    id_prefix: ACT
+    fields:
+      - name: id
+        label: ID
+        required: yes
+        pattern: "^ACT-\\d+$"
+      - name: actor
+        label: Actor
+        required: yes
+      - name: kind
+        label: 種別
+        required: yes
+        enum: [人, バッチ, 外部システム]
+      - name: can_do
+        label: 権限・できる操作
+        type: list
+        required: yes
+      - name: sources
+        label: 出典
+        type: list
+      - name: derivation
+        label: derivation
+        enum: [explicit, inferred, proposed]
+        default: explicit
+      - name: evidence_level
+        enum: [confirmed, likely, hypothesis]
+        render: no
+
+  - key: states
+    id_prefix: STT
+    fields:
+      - name: id
+        label: ID
+        required: yes
+        pattern: "^STT-\\d+$"
+      - name: object
+        label: オブジェクト
+        required: yes
+      - name: state
+        label: 状態
+        required: yes
+      - name: allowed
+        label: その状態でできること
+        type: list
+        required: yes
+      - name: terminal
+        label: 終端か
+        required: yes
+        enum: [yes, no]
+      - name: sources
+        label: 出典
+        type: list
+      - name: derivation
+        enum: [explicit, inferred, proposed]
+        default: explicit
+        render: no
+      - name: evidence_level
+        enum: [confirmed, likely, hypothesis]
+        render: no
+
+  - key: transitions
+    id_prefix: TRN
+    fields:
+      - name: id
+        label: ID
+        required: yes
+        pattern: "^TRN-\\d+$"
+      - name: from_state
+        label: 起点(STT)
+        required: yes
+      - name: operation
+        label: 操作
+        required: yes
+      - name: to_state
+        label: 終点(STT)
+        required: yes
+      - name: actor
+        label: Actor(ACT)
+        required: yes
+      - name: trigger
+        label: トリガー
+      - name: guard
+        label: ガード条件
+      - name: sources
+        label: 出典
+        type: list
+      - name: derivation
+        label: derivation
+        enum: [explicit, inferred, proposed]
+        default: explicit
+      - name: evidence_level
+        enum: [confirmed, likely, hypothesis]
+        render: no
+
+  - key: goals
+    id_prefix: BG
+    fields:
+      - name: id
+        label: ID
+        required: yes
+        pattern: "^BG-\\d+$"
+      - name: actor
+        label: Actor(ACT)
+        required: yes
+      - name: goal
+        label: 業務ゴール
+        required: yes
+      - name: traces_to
+        label: 関係する遷移(TRN)
+        type: list
+        required: yes
+      - name: sources
+        label: 出典
+        type: list
+      - name: evidence_level
+        label: evidence_level
+        enum: [confirmed, likely, hypothesis]
+      - name: derivation
+        label: derivation
+        enum: [explicit, inferred, proposed]
+        default: explicit
+
+  - key: handoffs
+    id_prefix: HO
+    optional: yes
+    fields:
+      - name: id
+        label: ID
+        required: yes
+        pattern: "^HO-\\d+$"
+      - name: traces_to
+        label: 遷移(TRN)
+        type: list
+        required: yes
+      - name: from_actor
+        label: From(ACT)
+        required: yes
+      - name: to_actor
+        label: To(ACT)
+        required: yes
+      # 「不明」も記録である。空欄を許さないので required にしている
+      - name: notice_by
+        label: 気づく手段
+        required: yes
+      - name: fails_when
+        label: 失敗する条件
+        required: yes
+      - name: deadline
+        label: 期限・タイムアウト
+      - name: sources
+        type: list
+        render: no
+      - name: derivation
+        label: derivation
+        enum: [explicit, inferred, proposed]
+        default: explicit
+
+  - key: impacts
+    optional: yes
+    fields:
+      - name: traces_to
+        label: 遷移(TRN)
+        type: list
+        required: yes
+      - name: target
+        label: 影響先(他システム/帳票/集計/通知/監査)
+        required: yes
+      - name: visible_on_screen
+        label: 画面で確認できるか
+        required: yes
+        enum: [yes, no, partial]
+      - name: verify_by
+        label: 確認手段
+        required: yes
+      - name: sources
+        label: 出典
+        type: list
+
+  - key: stories
+    id_prefix: US
+    optional: yes
+    fields:
+      - name: id
+        label: ID
+        required: yes
+        pattern: "^US-\\d+$"
+      - name: actor
+        label: Actor(ACT)
+        required: yes
+      - name: story
+        label: ストーリー
+        required: yes
+      - name: value
+        label: Value
+        required: yes
+      - name: traces_to
+        label: traces_to
+        type: list
+      - name: sources
+        label: 出典
+        type: list
+      - name: derivation
+        label: derivation
+        enum: [explicit, inferred, proposed]
+        default: explicit
+      - name: evidence_level
+        enum: [confirmed, likely, hypothesis]
+        render: no
+
+  - key: questions
+    optional: yes
+    fields:
+      - name: num
+        label: "#"
+        required: yes
+      - name: question
+        label: 確認事項
+        required: yes
+      - name: options
+        label: 候補となる答え(A/B)
+        type: list
+        required: yes
+      - name: answered_by
+        label: 想定回答者
+        required: yes
+      - name: blocks
+        label: これが決まらないと何が作れないか
+        required: yes
+
+rules:
+  - unique_ids
+  - id_pattern
+  - required_fields
+  - enum_values
+  - explicit_requires_sources
+
+sections:
+  - num: 1
+    title: Actor 一覧
+    from: ledger.actors
+  - num: 2
+    title: ドメインオブジェクトと状態
+    from: ledger.states
+  - num: 3
+    title: 状態遷移
+    intro: narrative.transition_diagram
+    from: ledger.transitions
+  - num: 4
+    title: 業務ゴール
+    from: ledger.goals
+  - num: 5
+    title: ロール間の引き継ぎ(handoff)
+    from: ledger.handoffs
+  - num: 6
+    title: 後続影響(downstream_impacts)
+    from: ledger.impacts
+  - num: 7
+    title: ユーザーストーリー
+    from: ledger.stories
+  - num: 8
+    title: 確認が必要な事項(暗黙知の欠落)
+    from: ledger.questions
+  - num: 9
+    title: 不足情報
+    from: narrative.missing

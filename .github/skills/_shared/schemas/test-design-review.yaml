@@ -1,0 +1,84 @@
+# テスト設計レビュー(42-test-design-review)のスキーマ
+#
+# 出力フォーマットの定義元は qa-test-design-review/SKILL.md。
+# 指摘0の観点も走査証跡として残す(「問題なし」と「見ていない」を区別するため)。
+
+artifact: test-design-review
+number: "42"
+title: テスト設計レビュー
+
+ledgers:
+  - key: scan_trace
+    fields:
+      - name: aspect
+        label: 観点
+        required: yes
+      - name: count
+        label: 指摘数
+        required: yes
+      # 指摘0が「問題なし」なのか「見られていない」なのかを区別する証跡
+      - name: how
+        label: 確認内容
+        required: yes
+
+  - key: findings
+    optional: yes
+    fields:
+      - name: num
+        label: "#"
+        required: yes
+      - name: severity
+        label: 深刻度
+        required: yes
+        enum: [Blocker, High, Medium, Low]
+      - name: category
+        label: 分類(A〜F)
+        required: yes
+      - name: finding
+        label: 指摘
+        required: yes
+      - name: basis
+        label: 根拠
+        required: yes
+      - name: fix
+        label: 修正案
+        required: yes
+      - name: evidence_level
+        label: evidence_level
+        required: yes
+        enum: [confirmed, likely, hypothesis]
+      - name: sources
+        type: list
+        render: no
+      - name: derivation
+        enum: [explicit, inferred, proposed]
+        default: explicit
+        render: no
+
+rules:
+  - unique_ids
+  - required_fields
+  - enum_values
+
+sections:
+  - num: 1
+    title: 総合評価
+    from: narrative.overall
+  - num: 2
+    title: 走査証跡
+    from: ledger.scan_trace
+  - num: 3
+    title: シナリオ・モデルのカバレッジ
+    from: narrative.coverage
+  - num: 4
+    title: 指摘一覧
+    from: ledger.findings
+  - num: 5
+    title: 良い点(維持すべきこと)
+    from: narrative.good
+  - num: 6
+    title: ユーザー判定と対応結果
+    from: narrative.judgement
+  - num: 7
+    title: チェックリスト更新の提案
+    from: narrative.checklist

@@ -47,6 +47,7 @@ for _stream in (sys.stdout, sys.stderr):
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import miniyaml  # noqa: E402
+import validate_artifact  # noqa: E402
 from validate_artifact import ARTIFACT_RE, schema_for  # noqa: E402
 
 GENERATED_NOTE = (
@@ -75,9 +76,9 @@ def cell(value, join=", "):
     return text
 
 
-def visible_fields(schema):
-    return [f for f in schema["ledger"]["fields"]
-            if not str(f.get("render", "yes")).strip().lower() == "no"]
+def visible_fields(ledger):
+    return [f for f in ledger["fields"]
+            if str(f.get("render", "yes")).strip().lower() != "no"]
 
 
 def render_table(fields, records):
@@ -90,30 +91,98 @@ def render_table(fields, records):
     return "\n".join(lines)
 
 
-def render_ledger(schema, data):
-    """台帳セクション。proposed は必ず別表に分ける(conventions.md §5-3)。"""
-    records = data.get(schema["ledger"]["key"]) or []
-    fields = visible_fields(schema)
-    main = [r for r in records if str(r.get("derivation", "") or "explicit") != "proposed"]
-    proposed = [r for r in records if str(r.get("derivation", "") or "explicit") == "proposed"]
+def is_proposed(rec):
+    return str(rec.get("derivation", "") or "explicit") == "proposed"
 
-    out = []
-    if main:
-        out.append(render_table(fields, main))
-    else:
-        out.append("該当なし")
 
+def _proposed_heading(level="###"):
+    return [
+        "",
+        "{} 要件外提案(AIが資料外から補った項目 — 採否はユーザーが判断する)".format(level),
+        "",
+        "以下は**インプット資料に根拠がない**。過去障害・ドメイン知識・リスク分析から"
+        "導いた提案であり、上とは出所が違う(conventions.md §5-3)。",
+        "",
+    ]
+
+
+def select(records, filt):
+    """セクションの filter に従ってレコードを絞る。
+
+    `not_proposed` / `proposed` は、提案を独立した節に持つ成果物
+    (業務シナリオの「## 3. 提案シナリオ」など)のためのもの。
+    filter が無い場合は1つの節の中で本表と別表に分ける。
+    """
+    if filt == "proposed":
+        return [r for r in records if is_proposed(r)], False
+    if filt == "not_proposed":
+        return [r for r in records if not is_proposed(r)], False
+    return records, True
+
+
+def render_ledger(ledger, data, filt=None):
+    """台帳セクション(表)。proposed は必ず別表に分ける(conventions.md §5-3)。"""
+    records, split = select(data.get(ledger["key"]) or [], filt)
+    fields = visible_fields(ledger)
+    if not split:
+        return render_table(fields, records) if records else "該当なし"
+
+    main = [r for r in records if not is_proposed(r)]
+    proposed = [r for r in records if is_proposed(r)]
+    out = [render_table(fields, main) if main else "該当なし"]
     if proposed:
-        out.append("")
-        out.append("### 要件外提案(AIが資料外から補った項目 — 採否はユーザーが判断する)")
-        out.append("")
-        out.append(
-            "以下は**インプット資料に根拠がない**。過去障害・ドメイン知識・リスク分析から"
-            "導いた提案であり、上の表とは出所が違う(conventions.md §5-3)。"
-        )
-        out.append("")
+        out.extend(_proposed_heading())
         out.append(render_table(fields, proposed))
     return "\n".join(out)
+
+
+def render_detail(ledger, data, filt=None):
+    """詳細セクション。1レコードを見出し+項目の並びとして展開する。
+
+    シナリオ詳細のように、1件ごとに手順表や複数の属性を持つ台帳のためのもの。
+    ここでも proposed は別見出しに分ける。
+    """
+    records, split = select(data.get(ledger["key"]) or [], filt)
+    if not records:
+        return "該当なし"
+    main = [r for r in records if not is_proposed(r)] if split else records
+    proposed = [r for r in records if is_proposed(r)] if split else []
+
+    def one(rec):
+        rid = str(rec.get("id", "")).strip()
+        title = str(rec.get(ledger.get("detail_title", "title"), "")).strip()
+        head = "### {}{}".format(rid, ": " + title if title else "")
+        lines = [head, ""]
+        for f in ledger["fields"]:
+            if str(f.get("detail", "yes")).strip().lower() == "no":
+                continue
+            name = f["name"]
+            if name in ("id", ledger.get("detail_title", "title")):
+                continue
+            v = rec.get(name, "")
+            if v in ("", [], None):
+                continue
+            label = f.get("label", name)
+            if f.get("type") == "table" and isinstance(v, list) and v and isinstance(v[0], dict):
+                lines.append("- **{}**:".format(label))
+                lines.append("")
+                sub = render_table(f.get("fields", []), v)
+                lines.extend("  " + ln for ln in sub.splitlines())
+                lines.append("")
+            elif isinstance(v, str) and "\n" in v.strip():
+                lines.append("- **{}**:".format(label))
+                lines.append("")
+                lines.extend("  " + ln for ln in v.rstrip("\n").splitlines())
+                lines.append("")
+            else:
+                lines.append("- **{}**: {}".format(label, cell(v, f.get("join", ", "))))
+        return "\n".join(lines)
+
+    out = [one(r) for r in main] if main else ["該当なし"]
+    if proposed:
+        out.append("\n".join(_proposed_heading("###")))
+        out.extend(one(r) for r in proposed)
+    return "\n\n".join(out)
 
 
 def render(schema, data, src_name):
@@ -132,15 +201,27 @@ def render(schema, data, src_name):
                              if not ln.startswith("⚠️") else "> {}".format(ln.strip()))
         lines.append("")
 
+    by_key = {l["key"]: l for l in validate_artifact.ledgers_of(schema)}
     for sec in schema.get("sections", []):
         lines.append("## {}. {}".format(sec["num"], sec["title"]))
         lines.append("")
-        src = sec.get("from", "")
-        if src == "ledger":
-            body = render_ledger(schema, data)
+        intro = str(sec.get("intro", "") or "")
+        if intro:
+            body_intro = str(narrative.get(intro.split(".", 1)[-1], "") or "").rstrip("\n")
+            if body_intro.strip():
+                lines.append(body_intro)
+                lines.append("")
+        src = str(sec.get("from", ""))
+        filt = str(sec.get("filter", "") or "") or None
+        kind, _, key = src.partition(".")
+        if kind == "ledger":
+            ledger = by_key.get(key)
+            body = render_ledger(ledger, data, filt) if ledger else "(スキーマに台帳 {} がありません)".format(key)
+        elif kind == "detail":
+            ledger = by_key.get(key)
+            body = render_detail(ledger, data, filt) if ledger else "(スキーマに台帳 {} がありません)".format(key)
         else:
-            key = src.split(".", 1)[1] if "." in src else src
-            body = str(narrative.get(key, "") or "").rstrip("\n")
+            body = str(narrative.get(key or src, "") or "").rstrip("\n")
             if not body.strip():
                 body = "該当なし"
         lines.append(body)

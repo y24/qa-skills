@@ -24,7 +24,6 @@
     python hook_entry.py pre-write
     python hook_entry.py post-write
     python hook_entry.py stop
-    python hook_entry.py stop --warn-only     # 慣らし運転(exit 2 を出さない)
 
 exit code:
     0 = 問題なし(処理を続行させる)
@@ -166,7 +165,7 @@ def file_path_of(payload):
 # 出力(3方言を1つのJSONにまとめる。キーは衝突しない)
 # ---------------------------------------------------------------------------
 
-def emit(decision, event, reason, warn_only=False):
+def emit(decision, event, reason):
     """判定を各ホストの形式で出し、終了コードを返す。
 
     decision: "allow" / "deny" / "context"
@@ -174,15 +173,6 @@ def emit(decision, event, reason, warn_only=False):
     """
     out = {}
     if decision == "deny":
-        if warn_only:
-            # 慣らし運転: 阻止せず、モデルに気づかせるだけ
-            out["systemMessage"] = reason
-            out["hookSpecificOutput"] = {
-                "hookEventName": event, "additionalContext": reason,
-            }
-            print(json.dumps(out, ensure_ascii=False))
-            print(reason, file=sys.stderr)
-            return 0
         # Claude Code
         hso = {"hookEventName": event}
         if event in ("PreToolUse", "UserPromptSubmit"):
@@ -395,7 +385,7 @@ def action_pre_bash(payload, args):
             "解消してから再度 set-gate を実行してください。"
             "検出が誤りだと判断する場合は、その理由をユーザーに説明し判断を仰いでください。"
         ).format(gate=gate, detail=summarize(report))
-        return emit("deny", "PreToolUse", reason, args.warn_only)
+        return emit("deny", "PreToolUse", reason)
 
     # set-status <dir> <order> approved --output <file>
     m = re.search(
@@ -418,7 +408,7 @@ def action_pre_bash(payload, args):
             "{detail}\n"
             "解消してから完了扱いにしてください。"
         ).format(name=os.path.basename(target), detail=summarize(report))
-        return emit("deny", "PreToolUse", reason, args.warn_only)
+        return emit("deny", "PreToolUse", reason)
 
     return 0
 
@@ -452,7 +442,7 @@ def action_pre_write(payload, args):
         "maintenance-log.md のトリアージを経てメンテナーが反映します。\n"
         "セッション内で直接育ててよいのはプロジェクト資産だけです: {assets}"
     ).format(path=path, assets=" / ".join(PROJECT_ASSETS))
-    return emit("deny", "PreToolUse", reason, args.warn_only)
+    return emit("deny", "PreToolUse", reason)
 
 
 def action_post_write(payload, args):
@@ -480,7 +470,7 @@ def action_post_write(payload, args):
         "{detail}"
     ).format(name=os.path.basename(target), detail=summarize(report))
     # PostToolUse は阻止できない。stderr がモデルへのフィードバックになる
-    return emit("deny", "PostToolUse", reason, args.warn_only)
+    return emit("deny", "PostToolUse", reason)
 
 
 def action_stop(payload, args):
@@ -523,7 +513,7 @@ def action_stop(payload, args):
         "{detail}\n"
         "検出が誤りだと判断する場合は、解消したことにせず理由をユーザーに説明してください。"
     ).format(detail=detail)
-    return emit("deny", "Stop", reason, args.warn_only)
+    return emit("deny", "Stop", reason)
 
 
 def action_subagent_stop(payload, args):
@@ -552,8 +542,6 @@ def main(argv=None):
     )
     parser.add_argument("action", choices=sorted(ACTIONS),
                         help="hook イベントに対応するアクション")
-    parser.add_argument("--warn-only", action="store_true",
-                        help="ブロックせず警告だけ返す(段階導入時の慣らし運転用)")
     args = parser.parse_args(argv)
 
     payload = read_payload()

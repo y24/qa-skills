@@ -61,17 +61,20 @@ hook は入れすぎても止めすぎても壊れる。以下は意図的な設
 - **Quick モードには網羅の手続きを課さない。** `gate_check.py` が `run_mode` を読んで trace を省く(skill-map.md §2)。セッションファイルが無い場合も同じ。
 - **`QA_ALLOW_MASTER_EDIT=1`** でマスター資産ガードを一時的に外せる(メンテナンス作業用)。
 
-## 5. 段階導入(慣らし運転)
+## 5. 運用
 
-**いきなり止めない。** 現在すべての hook に `--warn-only` が付いている。この状態では検出をモデルに伝えるだけで、ブロックはしない。
+hook は**通す/止めるを決めるもの**であって、様子見のための仕組みではない。止めてよいのは §1 のとおり誤検出しない検査だけであり、それ以外は hook にしない。
 
-1〜2セッション回して**誤検出が出ないことを確認してから**、2つの設定ファイルから `--warn-only` を外す。誤検出が出た場合は、hook 設定ではなく `gate_check.py` / `lint_output.py` / `trace_check.py` 側を直す(判定基準を hook で緩めない)。
+**誤検出が出たら、hook 設定ではなく検査側(`gate_check.py` / `lint_output.py` / `trace_check.py` / `validate_artifact.py`)を直す。** hook 側で緩めると環境ごとに強制力が変わり、「どこで動かしたか」で結果が変わるようになる。誤検出は検査の欠陥なので、`maintenance-log.md` のトリアージに乗せて直す。
 
-無効化するには:
+止められたときにAIが検証を迂回してはならない。検出が誤りだと判断する場合も、解消したことにせず理由をユーザーに説明する(conventions.md §9)。
+
+一時的に無効化する必要が出た場合:
 
 - Claude Code: `.claude/settings.json` に `"disableAllHooks": true`
 - Copilot: 設定ファイルの先頭に `"disableAllHooks": true`
 - VS Code: `.vscode/settings.json` の `chat.hookFilesLocations` を全部 `false`
+- マスター資産ガードだけ外したいとき(メンテナンス作業): 環境変数 `QA_ALLOW_MASTER_EDIT=1`
 
 ## 6. 変更するとき
 
@@ -79,7 +82,7 @@ hook を追加・削除するときは次の順で行う。
 
 1. 本ファイル §2 の表を更新する(**ここが定義元**)
 2. `scripts/hook_entry.py` にアクションを足す。**判定ロジックは `gate_check.py` 側に置く**
-3. `.github/hooks/qa-quality-gates.json` と `.claude/settings.json` の両方に配線する(形式が違うことに注意)
+3. `.github/hooks/qa-quality-gates.json` と `.claude/settings.json` の両方に配線する。**形式が違うだけで、呼ぶコマンド文字列は同じにする** — 差分が構造だけになるので、片方だけ変えた事故が目視で分かる
 4. `.github/workflows/qa-artifacts.yml` の自己検査に「検出できること」のケースを足す
 5. `scripts/README.md` の4層の表を追随させる
 

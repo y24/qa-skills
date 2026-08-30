@@ -83,19 +83,13 @@ YAML の読み取りは `miniyaml.py`(PyYAML 不要)。自前実装なので、*
 | 3. hooks | `hook_entry.py`(hook 設定から起動) | Claude Code / Copilot CLI / Copilot cloud agent / VS Code(preview) | AIが回避できない |
 | 4. CI | [.github/workflows/qa-artifacts.yml](../../../workflows/qa-artifacts.yml) | PRを出すなら常に | 最終防衛 |
 
-層3の配線は済んでいる。**どの hook が何を保証するかの定義元は [hooks.md](../hooks.md)。** 現在は全 hook が `--warn-only` 付き(慣らし運転中)なので、検出をモデルに伝えるだけでブロックはしない。
+**どの hook が何を保証するかの定義元は [hooks.md](../hooks.md)。** 判定の実装は `gate_check.py` の1本だけで、どの層もそれを呼ぶ。
 
 **CI は成果物だけでなく検証層自身も検査する。** `gate_check.py` が誤って PASS を返すようになると全ゲートが黙って無効になるため、欠陥を仕込んだフィクスチャで「検出できること」と「規約どおりの成果物を誤検出しないこと」の両方を毎回確かめている。
 
-### 慣らし運転
+### 誤検出が出たとき
 
-hooks はいきなり止めない。`--warn-only` を付けて1〜2セッション回し、誤検出が出ないことを確認してから外す(手順は [hooks.md §5](../hooks.md))。誤検出が出た場合は、hook 設定ではなく `gate_check.py` / `lint_output.py` / `trace_check.py` 側を直す — **判定基準を hook で緩めると環境ごとに強制力が変わる**。
-
-hook 設定は形式が違うため Copilot 用と Claude Code 用の2つある。ずれると片方の環境でだけゲートが静かに効かなくなるので、配線を変えたら整合を確認する。
-
-```bash
-python .github/hooks/check_hooks_config.py
-```
+**hook 設定ではなく検査側を直す。** `gate_check.py` / `lint_output.py` / `trace_check.py` / `validate_artifact.py` のいずれかの欠陥として `maintenance-log.md` のトリアージに乗せる。hook 側で緩めると環境ごとに強制力が変わり、「どこで動かしたか」で結果が変わるようになる。
 
 ## 責務の境界
 

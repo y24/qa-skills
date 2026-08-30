@@ -18,9 +18,10 @@ qa-improvement が振り返りレポート(90-improvement.md)のセクション2
     3. トレース率           traces_to の参照のうち、上流に実在するIDを指す割合
     4. モデルカバレッジ     意図モデルの ACT/STT/TRN/HO のうちシナリオが触れた割合
     5. シナリオ種別カバレッジ 正常・代替・例外・回復・取消の各種別の有無
-    6. 業務オラクル保有率   期待結果が画面表示以外の業務結果を検証している割合(推定)
+    6. 業務オラクル保有率   期待結果が画面表示以外の業務結果を検証している割合
 
-指標6はキーワード推定であり誤差がある(出力に「推定」と明記される)。
+指標6は、構造化成果物(conventions.md §6-2 の `.yaml`)があれば `oracle` フィールドから
+実測する。無い場合はキーワード推定に落ち、そのことが出力に明記される。
 
 表の解析は trace_check.py の実装を共有する(同一ディレクトリに配置されている前提)。
 
@@ -203,8 +204,59 @@ def measure_scenario_kinds(artifacts):
     }
 
 
-def measure_oracles(artifacts):
-    """指標6: 業務オラクル保有率(キーワードによる推定)。"""
+def measure_oracles_structured(session_dir):
+    """指標6を構造化成果物から**実測**する。
+
+    テストケース・シナリオが `.yaml`(conventions.md §6-2)で書かれている場合、
+    `oracle` は enum のフィールドなので推定が要らない。構造化されていない
+    セッションでは None を返し、呼び出し側がキーワード推定へ落ちる。
+    """
+    try:
+        import miniyaml
+    except ImportError:
+        return None
+    counts = {}
+    total = 0
+    for path in sorted(Path(session_dir).glob("*.yaml")):
+        name = path.name
+        if not (name[:2].isdigit() and name[2:3] == "-"):
+            continue
+        try:
+            data = miniyaml.parse(path.read_text(encoding="utf-8"))
+        except (miniyaml.YamlError, OSError):
+            return None
+        if not isinstance(data, dict):
+            continue
+        for value in data.values():
+            if not isinstance(value, list):
+                continue
+            for rec in value:
+                if not isinstance(rec, dict) or "oracle" not in rec:
+                    continue
+                total += 1
+                key = str(rec.get("oracle") or "none").strip() or "none"
+                counts[key] = counts.get(key, 0) + 1
+    if not total:
+        return None
+    business = total - counts.get("screen", 0) - counts.get("none", 0)
+    return {
+        "利用可能": True,
+        "率": pct(business, total),
+        "分子分母": [business, total],
+        "内訳": counts,
+        "注記": "構造化成果物の oracle フィールドによる実測(推定ではない)",
+    }
+
+
+def measure_oracles(artifacts, session_dir=None):
+    """指標6: 業務オラクル保有率。
+
+    構造化成果物があれば実測し、無ければ期待結果のキーワードから推定する。
+    """
+    if session_dir is not None:
+        exact = measure_oracles_structured(session_dir)
+        if exact is not None:
+            return exact
     text_rows = []
     for key, _path, text in artifacts:
         if not key.startswith("test-case"):
@@ -340,7 +392,7 @@ def main():
     tr = measure_trace(artifacts)
     mc = measure_model_coverage(artifacts)
     sk = measure_scenario_kinds(artifacts)
-    orc = measure_oracles(artifacts)
+    orc = measure_oracles(artifacts, session_dir)
 
     if args.as_json:
         print(json.dumps({

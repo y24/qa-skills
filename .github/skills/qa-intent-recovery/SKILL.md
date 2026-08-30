@@ -143,7 +143,16 @@ LLM が生成したストーリーに繰り返し現れる欠陥を、書いた�
 | 既存のユーザーストーリーが入力にある | それを正本にしない。モデルと突合し、**モデルにあってストーリーに無いもの**(=ストーリーが圧縮で落とした情報)を差分として挙げる |
 | 利用ログ・過去不具合から新しい業務経路が見えた | `proposed` として別節に置く。要件由来のモデルに混ぜない |
 
-## 出力フォーマット(10-intent-recovery.md)
+## 出力フォーマット
+
+**この成果物は台帳系なので `10-intent-recovery.yaml` に書く**(conventions.md §6-2)。Markdown は生成物であり、直接書かない。
+
+1. `10-intent-recovery.yaml` を書く。フィールド・必須・許容値の定義元は [_shared/schemas/intent-recovery.yaml](../_shared/schemas/intent-recovery.yaml)
+2. `validate_artifact.py` で規約検証 → `render_md.py` で Markdown を生成(コマンドは conventions.md §6-2)
+
+`derivation: proposed` の別表・別節への振り分けはレンダラが機械的に行う。手で分けない。
+
+生成される Markdown は次の形になる(**この形を手で書かない**)。
 
 ```markdown
 # 意図モデル: <対象>
@@ -176,12 +185,9 @@ stateDiagram-v2
 | 遷移(TRN) | 影響先(他システム/帳票/集計/通知/監査) | 画面で確認できるか | 確認手段 | 出典 |
 
 ## 7. ユーザーストーリー
-### 7-1. 復元(derivation: explicit)
-| ID | Actor(ACT) | ストーリー | Value | traces_to | 出典 |
-### 7-2. 再構成(derivation: inferred)
-| ID | Actor(ACT) | ストーリー | Value | 推論した箇所 | traces_to |
-### 7-3. 発見・提案(derivation: proposed)
-| ID | Actor(ACT) | ストーリー | 提案の根拠(BUG-ID/ログ/ドメイン知識) | 採否判定 |
+| ID | Actor(ACT) | ストーリー | Value | traces_to | 出典 | derivation |
+(復元=explicit と再構成=inferred は同じ表に derivation 列で区別する。
+ 発見・提案=proposed は**レンダラが自動で「要件外提案」の別表に出す**)
 
 ## 8. 確認が必要な事項(暗黙知の欠落)
 | # | 確認事項 | 候補となる答え(A/B) | 想定回答者 | これが決まらないと何が作れないか |

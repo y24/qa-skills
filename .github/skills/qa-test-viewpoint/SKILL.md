@@ -65,40 +65,7 @@ Quick モードでは、**入力に書かれていない業務知識・状態・
 
 ## 出力フォーマット
 
-**この成果物は台帳系なので `30-test-viewpoint/` に台帳CSVと notes.md を書く**(conventions.md §6-2)。Markdown は生成物であり、直接書かない。
-
-1. `30-test-viewpoint/<台帳名>.csv` を書く。台帳名・列・必須・許容値の定義元は [_shared/schemas/test-viewpoint.yaml](../_shared/schemas/test-viewpoint.yaml)
-2. `30-test-viewpoint/notes.md` に叙述セクションを書く(成果物と同じ `## <番号>. <タイトル>` の見出し)
-3. `normalize_ledger.py 30-test-viewpoint` で台帳CSVを正規化 → `validate_artifact.py 30-test-viewpoint` で規約検証 → `render_md.py 30-test-viewpoint` で Markdown を生成
-
-`derivation: proposed` の別表・別節への振り分けはレンダラが機械的に行う。手で分けない。
-
-生成される Markdown は次の形になる(**この形を手で書かない**)。
-
-```markdown
-# テスト観点一覧: <対象>
-
-> 実行モード: <quick/grounded/process>
-(Quick モードの場合は次の注記を必ず付ける)
-> ⚠️ これは入力された情報の展開であり、網羅ではない。入力に書かれていない
-> 業務知識・状態遷移・ロール間の引き継ぎ・例外は含まれない。
-
-## 1. 土台の分解表
-(シナリオ起点なら シナリオ×ステップ×状態、そうでなければ 機能×入力×状態×出力)
-
-## 2. テスト観点一覧
-| ID | 対象(SC/機能) | 観点 | 期待結果の要点 | 導出元(技法/特性/BUG-ID/QC-ID/仕様節) | traces_to | 優先度 |
-(ID は VP-NN)
-
-## 3. 対象外とした観点とその理由
-(SFDIPOT のゼロ軸・コードで保証済みの項目・絞った範囲を含む)
-
-## 4. 期待結果が定義できなかった観点
-(→ qa-spec-review で AMB として確認に回すか、qa-test-design-review が切り出す)
-
-## 5. カバレッジ確認結果
-(シナリオ / QC基準 / SFDIPOT の各軸で、対応する観点がないもの)
-```
+台帳系の成果物(conventions.md §6-2)。`30-test-viewpoint/` に台帳CSVと `notes.md`(叙述)を書き、§6-2 の3コマンドで Markdown を生成する。**節の番号・タイトル・表の列・モードの限界注記・どの節を叙述で書くかの定義元は [_shared/schemas/test-viewpoint.yaml](../_shared/schemas/test-viewpoint.yaml)** — ここに書き写さない。
 
 ## 品質基準
 

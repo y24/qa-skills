@@ -129,7 +129,7 @@ SECTION_SPECS = {
             (6, "不足情報・次のアクション", ("不足情報",), True),
         ],
     },
-    # 出典: qa-intent-recovery/SKILL.md
+    # 出典: schemas/intent-recovery.yaml の sections(render_md.py が生成する形)
     "intent-recovery": {
         "label": "意図モデル",
         "sections": [
@@ -144,7 +144,7 @@ SECTION_SPECS = {
             (9, "不足情報", ("不足情報",), True),
         ],
     },
-    # 出典: qa-scenario-design/SKILL.md
+    # 出典: schemas/scenario-design.yaml の sections(render_md.py が生成する形)
     "scenario-design": {
         "label": "業務シナリオ",
         "sections": [
@@ -197,7 +197,7 @@ SECTION_SPECS = {
             (5, "用語集への追記候補", ("用語集",), True),
         ],
     },
-    # 出典: qa-test-viewpoint/SKILL.md
+    # 出典: schemas/test-viewpoint.yaml の sections(render_md.py が生成する形)
     "test-viewpoint": {
         "label": "テスト観点一覧",
         "sections": [
@@ -209,7 +209,7 @@ SECTION_SPECS = {
             (5, "カバレッジ確認結果", ("カバレッジ",), False),
         ],
     },
-    # 出典: qa-test-case-design/SKILL.md「出力フォーマット(31-test-case.md)」
+    # 出典: schemas/test-case.yaml の sections(render_md.py が生成する形)
     "test-case": {
         "label": "テストケース",
         "sections": [

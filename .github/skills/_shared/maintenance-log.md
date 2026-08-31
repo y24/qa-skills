@@ -89,3 +89,19 @@ qa-improvement は振り返りレポート(`90-improvement.md`)に改善提案�
 | **手元の資料と前段の成果物で決まることは §2-1 の対象外**(許可不要)。同種の問いは1問にまとめる | conventions.md §2-1 | 採用 | 前者が無いと渡された仕様書を読むだけで確認を挟む。後者が無いと、確認の回数が §2-1 で避けたかった停止を生む |
 | 実装の挙動を問う項目も `pending_questions` に入れ、**調査は許可を得た子スキルが行う**(親は先回りしない) | subagent-contract.md / qa-orchestrator(SKILL・agent) / qa-skill-runner.agent.md | 修正して採用 | 前回は親が調べて `answers` を埋める配線。調べ先を知っているのは子なので、許可だけを親が運ぶ形にした |
 | 各スキル側の記述は §2-1 への参照1文に圧縮(qa-intent-recovery / qa-test-case-design / qa-spec-review / eval-run) | 各 SKILL.md ほか | 修正して採用 | 規約の言い直しはコンテキストを食うだけ。定義元は conventions.md 1箇所 |
+
+## 2026-09-01 運用フィードバック(メンテナー直接。スキル群全体の重複精査)
+
+**背景**: 規約の言い直しがスキル群全体に散っている。SKILL.md は毎回コンテキストに載るので、長さがそのまま実行時のコストになる。実行時に読まれるファイル(SKILL.md 11本 + _shared + agents)を通しで精査した。
+
+| 項目 | 対象ファイル | 判断 | 理由・備考 |
+|---|---|---|---|
+| 台帳系4スキルの「生成される Markdown は次の形になる」骨組みを削除し、`schemas/*.yaml` の `sections:` を定義元にする。SKILL.md には**叙述節の表の形**だけ残す | qa-intent-recovery / qa-scenario-design / qa-test-viewpoint / qa-test-case-design | 採用 | 節番号・タイトル・列・シナリオ詳細の展開はすべて yaml から render_md.py が生成しており、SKILL.md 側は手書きコピー。**実際に古くなっていた**(TRN行の重複、conventions §6-2 が「書かない」とした実行モード注記、yaml の mode_note と同文の Quick 警告)。台帳出力の3ステップ定型(§6-2 の再掲)も1文に圧縮 |
+| `lint_output.py` の SECTION_SPECS のうち台帳系4種の「出典」コメントを SKILL.md → `schemas/*.yaml` に付け替え | lint_output.py | 採用 | 定義元が動いたので追随。中身は現状 yaml と一致しているため変更なし |
+| 「中心原則」節と冒頭リードのうち、手順・品質基準の言い直しになっているものを削除(qa-scenario-design は品質基準7項目すべてが再掲だった) | qa-scenario-design / qa-intent-recovery / qa-source-analysis / qa-test-case-design / qa-test-strategy | 採用 | **出力直前に読む「品質基準」を残し、冒頭の原則を畳む**。原則1(業務ゴール単位で切る)のように手順にしか無いものは手順へ移設。隣接スキルとの境界は frontmatter の description が持つので「隣接スキルとの違い」表は削除 |
+| agent 層(Copilot)からゲート手順と禁止事項の再掲を削除し、askQuestions / `user_feedback` / runSubagent などツール固有分だけ残す | qa-orchestrator.agent.md | 採用 | このファイル自身が冒頭で「Copilot 固有の呼び出し方だけを補足する」と宣言しているのに、gates.md §4-1〜4-3 と SKILL.md の禁止事項を写していた |
+| リテラル重複行2件(`(ID は TRN-NN)` の二重、`遷移カバレッジ` の二重)、スクリプト内部仕様の書き写し2件を修正 | qa-intent-recovery / qa-scenario-design / qa-test-case-design / session-schema.md | 採用 | 前者は骨組みコピーが古くなった痕跡。後者は 2026-08-31「スクリプトの中身を書き写さない」の未適用箇所 |
+
+**残した重複(意図的)**: 各スキルの「〜不能時の分岐」表(手順から導けないフォールバックの定義)、非台帳系成果物(`00` / `20` / `40` / `42` / `90`)の出力フォーマット骨組み(SKILL.md が定義元で lint_output.py が追随する側)、conventions §4 とgates.md の役割分担(原則と手順)。
+
+**残課題**: `lint_output.py` の SECTION_SPECS は台帳系4種について `schemas/*.yaml` と同じ内容を持っている(検査側の二重定義)。今は一致しているが、yaml から読む形にすれば追随漏れが構造的に消える。

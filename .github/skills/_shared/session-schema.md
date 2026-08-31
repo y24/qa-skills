@@ -90,6 +90,6 @@
 - `inputs` の `converted_path`(任意)は、Excel・PDF 等を markitdown で Markdown 化した中間ファイルのパス([source-conversion.md](source-conversion.md))。設定されている資料は、各スキルは原本ではなく `converted_path` を読む(出典表記は原本パス)。
 - `decisions` にはユーザーの判断(除外・方針変更・承認時の条件・**ループバックの理由**)を必ず記録する。再開時の文脈になる。
 - `improvement_notes` には実行中に気づいたスキル自体の改善点を追記する。qa-improvement が最後に回収する。
-- 更新はステップ境界・ゲート境界ごと。更新には [scripts/qa_session.py](scripts/qa_session.py) のサブコマンド(init / add-input / add-phase / set-status / set-gate / add-decision / add-note / show / resume-info)を使う(タイムスタンプ付与・スキーマ検証・アトミック書き込みをスクリプトが保証する)。Python が使えない環境では、ファイルを壊さないよう読み込み→修正→全体書き戻しで手動更新する(conventions.md §9)。
+- 更新はステップ境界・ゲート境界ごと。更新には [scripts/qa_session.py](scripts/qa_session.py) のサブコマンド(init / add-input / add-phase / set-status / set-gate / add-decision / add-note / show / resume-info)を使う。Python が使えない環境では、ファイルを壊さないよう読み込み→修正→全体書き戻しで手動更新する(conventions.md §9)。
 - ゲートのレビュー依頼を出した時点で、そのゲートを `awaiting_approval` にする(`set-gate <ゲート> awaiting_approval --note "<何を見てもらっているか>"`)。**再開時にレビュー依頼を出し直すための状態**であり、`pending`(まだ何も見せていない)と区別する。
 - ループバック(skill-map.md §4)で前段に戻る場合は、戻り先ステップの status を `in_progress` に戻し、対応するゲートを `pending` に戻す。

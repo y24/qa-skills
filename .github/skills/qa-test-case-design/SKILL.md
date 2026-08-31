@@ -7,8 +7,6 @@ description: 承認済みのテスト観点一覧を、手順・入力値・期�
 
 観点(何を確認するか)を、**誰が実行しても同じ結果になるケース**(どうやって確認するか)に展開し、それを**実行できる状態**にするデータまで設計するスキル。
 
-データ設計はケースが要求する条件をデータに翻訳する作業なので、**ケースの入力値とデータ定義の値は必ず一致させる**。
-
 ## 実行前に読むこと
 
 - [_shared/conventions.md](../_shared/conventions.md)
@@ -32,7 +30,7 @@ description: 承認済みのテスト観点一覧を、手順・入力値・期�
 各観点を1つ以上のケースに展開する。
 
 - 境界値・同値クラスは test-design-techniques.md に従い**具体値まで決める**。桁数・許容文字・既定値が観点や前段の成果物に無い場合は conventions.md §2-1 の選択式で確認し、承諾されてから資料とコード(バリデーション実装・DBスキーマ)で確定する。読めなければ具体値を断定せず「要確認」として確認先を書く
-- 組み合わせが爆発する場合はペアワイズ適用を提案し、削減前後のケース数を示す。**組み合わせ表をLLMが手書きしない** — パラメータと値(と禁止ペア)をJSONに定義して次で生成する(全ペア網羅が自己検証され、削減前後のケース数もサマリーに出る)。どのパラメータを組み合わせ対象にするかの判断はAIが行う
+- 組み合わせが爆発する場合はペアワイズ適用を提案し、削減前後のケース数を示す。**組み合わせ表をLLMが手書きしない** — パラメータと値(と禁止ペア)をJSONに定義して次で生成する。どのパラメータを組み合わせ対象にするかの判断はAIが行う
 
 ```
 python .github/skills/_shared/scripts/pairwise.py <params.json>
@@ -101,30 +99,7 @@ python .github/skills/_shared/scripts/lint_output.py --session-dir <セッショ
 
 ## 出力フォーマット
 
-**この成果物は台帳系なので `31-test-case/` に台帳CSVと notes.md を書く**(conventions.md §6-2)。Markdown は生成物であり、直接書かない。
-
-1. `31-test-case/<台帳名>.csv` を書く。台帳名・列・必須・許容値の定義元は [_shared/schemas/test-case.yaml](../_shared/schemas/test-case.yaml)
-2. `31-test-case/notes.md` に叙述セクションを書く(成果物と同じ `## <番号>. <タイトル>` の見出し)
-3. `normalize_ledger.py 31-test-case` で台帳CSVを正規化 → `validate_artifact.py 31-test-case` で規約検証 → `render_md.py 31-test-case` で Markdown を生成
-
-`derivation: proposed` の別表・別節への振り分けはレンダラが機械的に行う。手で分けない。
-
-生成される Markdown は次の形になる(**この形を手で書かない**)。
-
-```markdown
-# テストケース: <対象>
-
-## 1. 展開サマリー
-- 観点数 → ケース数(削減理由があれば明記)
-
-## 2. テストケース一覧
-| ID | 観点ID | タイトル | 前提条件 | 手順 | 入力値 | 期待結果 | 確認手段 | 優先度 | 備考 |
-(ID は TC-NN。ロール切替を含む手順はセッション境界を明記)
-
-## 3. 実行順序・依存関係の注意
-
-## 4. 未展開の観点とその理由
-```
+台帳系の成果物(conventions.md §6-2)。`31-test-case/` に台帳CSVと `notes.md`(叙述)を書き、§6-2 の3コマンドで Markdown を生成する。**節の番号・タイトル・表の列・どの節を叙述で書くかの定義元は [_shared/schemas/test-case.yaml](../_shared/schemas/test-case.yaml)** — ここに書き写さない。
 
 ### 32-test-data.md(手順5〜9を実施した場合のみ)
 

@@ -32,6 +32,15 @@ ledgers:
       - name: expected
         label: 期待結果の要点
         required: yes
+      # 観点が出てきた「きっかけ」の種別。derived_from は個別の出所
+      # (技法名・BUG-ID・仕様節)を持つが、それだけでは「設計書から素直に
+      # 出た観点」と「過去不具合を見て足した観点」が並んだときに区別できない。
+      # 1つの観点が複数のきっかけから出ることがあるので list
+      - name: category
+        label: カテゴリ
+        type: list
+        required: yes
+        enum: [設計書, シナリオ, 品質特性, 過去不具合, リスク, 経験則]
       - name: derived_from
         label: 導出元(技法/特性/BUG-ID/QC-ID/仕様節)
         type: list

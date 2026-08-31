@@ -57,6 +57,9 @@
   "summary": "3〜5行の要約(ゲートでユーザーに提示される)",
   "key_decisions": ["重要な判断ポイント(ゲートで提示される)"],
   "unknowns": ["資料から決められず proposed / 不足情報として残した事項"],
+  "review_points": [
+    { "where": "11-scenario-design.md §3 SC-04", "judgment": "AIの現在の判断(1行)", "why": "確認が要る理由(判断が割れうる点)" }
+  ],
   "pending_questions": [
     { "id": "q1", "question": "質問文", "options": ["選択肢A(推奨)", "選択肢B"], "multi": false }
   ],
@@ -76,13 +79,14 @@
   - `"completed"` — 成果物を書き出し済み
   - `"needs_user_input"` — ユーザーの選択が無いと進めない。`pending_questions` 必須。成果物は途中まで書き出してよい
   - `"error"` — 続行不能。`{ "status": "error", "skill": "...", "result": "詳細" }` を返す
-- `pending_questions` / `proposals` / `unknowns` は無ければ空配列。
+- `review_points` は**ゲートのレビュー依頼(conventions.md §4-1)の材料**。親はこれを使って「どのファイルのどこを見てほしいか」をユーザーに示す。§4-1 の優先順(proposed の採否 → やらないと決めた判断 → Blocker → hypothesis → 前提を置いた箇所)で**1〜3点**返す。`where` は人間が開く `.md` の節番号かIDで書く(台帳CSVを指さない)。
+- `pending_questions` / `proposals` / `unknowns` / `review_points` は無ければ空配列。
 - `proposals` は「参照ナレッジへの追記」などユーザー承認が必要な変更に使う。**承認前に対象ファイルを書き換えてはならない**。親が承認を取り、`approved_proposals` 付きで再呼び出しされたときに初めて適用する。
 
 ## 4. サブエージェントモードの制約
 
 1. **ユーザーへ質問できない**。SKILL.md の手順に「ユーザーに確認する」「承認を得る」とある箇所は、その場で止めず `pending_questions` / `proposals` に変換して親へ返す。
-2. **承認ゲートを自分で実施しない**。ゲート(conventions.md §4、skill-map.md §3)は親の責務。
+2. **承認ゲートを自分で実施しない**。ゲート(conventions.md §4、skill-map.md §3)は親の責務。ただしゲートで見てほしい箇所は自分にしか分からないので、`review_points` として必ず返す。
 3. **qa-session.json を更新しない**。セッション管理は親の責務。
 4. 成果物ファイル(`session_dir`/`artifact`)は自分で書き出し、`lint_output.py` の ERROR を解消してから返す。
 5. conventions.md の他の規約(日本語、証拠レベルと導出区分、不明点の扱い)はそのまま適用する。

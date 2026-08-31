@@ -24,7 +24,7 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
   qa-test-case-design/      # 31-32: テストケース展開とテストデータ設計
   qa-spec-review/           # 40: 曖昧性検出(対象を指定して実行。仕様書・意図モデル等)
   qa-code-review/           # 41: 品質特性ベースのQAコードレビュー(シフトレフト)
-  qa-test-design-review/    # 42: 独立レビュー(S〜D評価。期待結果の全数監査を含む)
+  qa-test-design-review/    # 42: 独立レビュー(S〜D評価。期待結果の全数監査 → 修正 → 再レビューまで)
   qa-improvement/           # 90: 振り返りレポートと指標測定
   _shared/
     skill-map.md            # ★スキル依存関係・実行モード・ゲートの唯一の定義元

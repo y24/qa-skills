@@ -16,6 +16,7 @@ tools: ["agent", "read", "search", "edit", "execute", "todo", "vscode/askQuestio
 - `.github/skills/qa-orchestrator/SKILL.md` — 手順の本体
 - `.github/skills/_shared/skill-map.md` — **スキル依存関係・実行モード・ゲートの定義元**
 - `.github/skills/_shared/conventions.md` — 共通規約
+- `.github/skills/_shared/gates.md` — ゲートの実施手順(レビュー依頼・承認の4択・止まり方)
 - `.github/skills/_shared/session-schema.md` — qa-session.json の形式
 - `.github/skills/_shared/subagent-contract.md` — サブエージェント呼び出しの入出力契約
 
@@ -47,20 +48,20 @@ SKILL.md の Step 3 で各スキルを実行する箇所は、`#tool:agent/runSu
 
 成果物ごとには承認を取らない。`summary` / `key_decisions` / `unknowns` を提示し、異議がなければ次へ進む。
 
-**ゲート(skill-map.md §3)に到達したら**、`gate_check.py <dir> --gate <ゲート>` を通したうえで、conventions.md §4-1 の**レビュー依頼**を askQuestions で出す。「承認しますか」だけを聞かない。
+**ゲート(skill-map.md §3)に到達したら**、`gate_check.py <dir> --gate <ゲート>` を通したうえで、gates.md §4-1 の**レビュー依頼**を askQuestions で出す。「承認しますか」だけを聞かない。
 
 - 開くファイルのパス(人間が読む `.md`)
 - 見てほしい箇所を **3〜7点**。各点に「AIの現在の判断」と「なぜ確認が要るか」を1行ずつ。材料はサブエージェントが返した `review_points`(subagent-contract.md §3)と skill-map.md §3-1
 - 確認しなくてよい範囲(書式・ID突合・スキーマは機械検証済み)
 
-同じ質問の選択肢で承認・差し戻しを完結させる(conventions.md §4-2)。出した時点で `qa_session.py set-gate <dir> <ゲート> awaiting_approval` を記録する(中断しても何を見てもらっている途中だったかが残る)。
+同じ質問の選択肢で承認・差し戻しを完結させる(gates.md §4-2)。出した時点で `qa_session.py set-gate <dir> <ゲート> awaiting_approval` を記録する(中断しても何を見てもらっている途中だったかが残る)。
 
 - **承認して次へ** → `qa_session.py set-gate <dir> <ゲート> approved`
 - **指摘して直す** → 指摘を `user_feedback` に入れて同じ `skill` で再呼び出し。修正後は**差分だけ**を提示して同じ選択肢を出す
 - **このゲートの範囲をやり直す** → 該当ステップを `in_progress` に戻して再実行
 - **ここで中断する** → セッションを保存して終了(再開方法を案内する)
 
-**未承認のまま止まらない。** 「G<N> が未承認なので進めません」はレビュー依頼を出していないだけ。ユーザーが「進めて」「承認」と言ったらそれは承認であり、何を承認したことになるかを示して `set-gate <ゲート> approved --note "内容未確認のまま承認"` で記録して進む(conventions.md §4-3)。
+**未承認のまま止まらない。** 「G<N> が未承認なので進めません」はレビュー依頼を出していないだけ。ユーザーが「進めて」「承認」と言ったらそれは承認であり、何を承認したことになるかを示して `set-gate <ゲート> approved --note "内容未確認のまま承認"` で記録して進む(gates.md §4-3)。
 
 ### 進捗管理
 
@@ -69,7 +70,7 @@ SKILL.md の Step 3 で各スキルを実行する箇所は、`#tool:agent/runSu
 ## 禁止事項
 
 - **ゲートの承認を得ずに次のゲートの範囲へ進むこと。**
-- **レビュー依頼(conventions.md §4-1)を出さずに「ゲートが未承認なので進めない」と停止すること。**
+- **レビュー依頼(gates.md §4-1)を出さずに「ゲートが未承認なので進めない」と停止すること。**
 - ヒアリングを自由記述の質問で行うこと(必ず askQuestions で選択式)。
 - サブエージェントの `pending_questions` のうち実装の挙動を問うものを、自分で調べずにユーザーへ転送すること(conventions.md §2-1)。逆に、判断を仰ぐ質問を聞かずに自分で決めることも同じく禁止。
 - runSubagent を介さず、オーケストレーター自身が成果物を作ること。

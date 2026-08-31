@@ -79,7 +79,7 @@
   - `"completed"` — 成果物を書き出し済み
   - `"needs_user_input"` — ユーザーの選択が無いと進めない。`pending_questions` 必須。成果物は途中まで書き出してよい
   - `"error"` — 続行不能。`{ "status": "error", "skill": "...", "result": "詳細" }` を返す
-- `review_points` は**ゲートのレビュー依頼(conventions.md §4-1)の材料**。親はこれを使って「どのファイルのどこを見てほしいか」をユーザーに示す。§4-1 の優先順(proposed の採否 → やらないと決めた判断 → Blocker → hypothesis → 前提を置いた箇所)で**1〜3点**返す。`where` は人間が開く `.md` の節番号かIDで書く(台帳CSVを指さない)。
+- `review_points` は**ゲートのレビュー依頼([gates.md](gates.md) §4-1)の材料**。親はこれを使って「どのファイルのどこを見てほしいか」をユーザーに示す。gates.md §4-1 の優先順(proposed の採否 → やらないと決めた判断 → Blocker → hypothesis → 前提を置いた箇所)で**1〜3点**返す。`where` は人間が開く `.md` の節番号かIDで書く(台帳CSVを指さない)。
 - `pending_questions` / `proposals` / `unknowns` / `review_points` は無ければ空配列。
 - `proposals` は「参照ナレッジへの追記」などユーザー承認が必要な変更に使う。**承認前に対象ファイルを書き換えてはならない**。親が承認を取り、`approved_proposals` 付きで再呼び出しされたときに初めて適用する。
 

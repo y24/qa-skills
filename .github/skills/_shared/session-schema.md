@@ -82,7 +82,7 @@
 | 値 | 意味 |
 |---|---|
 | `pending` | 未到達 |
-| `awaiting_approval` | 束ねる成果物が揃い、**レビュー依頼を出して回答待ち**(conventions.md §4-1) |
+| `awaiting_approval` | 束ねる成果物が揃い、**レビュー依頼を出して回答待ち**(gates.md §4-1) |
 | `approved` | 承認済み(次のゲートの範囲へ進める) |
 | `skipped` | このゲートが束ねる成果物が1つも無いため省略 |
 

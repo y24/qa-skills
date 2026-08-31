@@ -53,7 +53,7 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
       test-case.yaml
     scripts/                # 定型処理の補助スクリプト(Python 3.9+ 標準ライブラリのみ)
       qa_session.py         # qa-session.json の作成・更新・再開判定
-      defect_stats.py       # 不具合CSVの正規化雛形とラベル集計
+      defect_stats.py       # 不具合CSVの下見・台帳CSVへの正規化・ラベル集計
       pairwise.py           # ペアワイズ組み合わせ生成(自己検証付き)
       trace_check.py        # 成果物間のID突合(意図モデル⇄シナリオ⇄観点⇄ケース)
       lint_output.py        # 成果物の書式・evidence_level・derivation・ID書式チェック

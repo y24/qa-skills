@@ -13,14 +13,14 @@ QAスキル群のワークフローのうち、**入出力が決まっていて�
 | スクリプト | 用途 | 利用箇所 |
 |---|---|---|
 | [qa_session.py](qa_session.py) | qa-session.json の作成・更新・再開判定。インプット・ステップは一括投入(`--item` / `--steps`) | qa-orchestrator(計画作成時・完了時・ゲート通過時) |
-| [defect_stats.py](defect_stats.py) | `normalize`: 不具合CSV→ラベル雛形YAML生成 / `stats`: ラベル付け後の4軸分布・クロス集計 | qa-defect-analysis 手順1・3 |
+| [defect_stats.py](defect_stats.py) | `inspect`: 不具合CSVの列の下見 / `normalize`: ラベル列付き台帳CSVへ変換(**持ち越す列はAIが選ぶ**) / `stats`: 4軸分布・任意列の分布・クロス集計 / `table`: 台帳CSV→Markdown表 | qa-defect-analysis 手順1・3 |
 | [pairwise.py](pairwise.py) | ペアワイズ(全ペア網羅)組み合わせ生成。決定論的・生成後に自己検証。禁止ペア制約対応 | qa-test-case-design 手順2 |
 | [trace_check.py](trace_check.py) | 成果物間のID突合: 意図モデル⇄シナリオ⇄観点⇄ケースの孤児参照、導出元欠落、未確認QC基準、AMB参照切れ、ID重複 | qa-intent-recovery / qa-scenario-design / qa-test-viewpoint / qa-test-case-design / qa-test-design-review |
 | [lint_output.py](lint_output.py) | 成果物の必須セクション・evidence_level・derivation の付与漏れ・ID書式・曖昧語のチェック | 全スキル(要約提示前)/ qa-improvement 手順2 |
 | [metrics.py](metrics.py) | conventions.md §11 の指標算出: 根拠参照率・根拠なし事実主張率・トレース率・モデル/シナリオ種別カバレッジ・業務オラクル保有率 | qa-improvement 手順2 / qa-scenario-design 手順7 / qa-test-design-review 手順0 |
 | [gate_check.py](gate_check.py) | **検証の単一入口。** lint・ID突合・スキーマ検証・レンダリング一致を承認ゲート単位で束ねる。判定基準を1箇所に閉じるためのもの | SKILL.md の手順 / hooks / CI(すべてここを呼ぶ) |
 | [hook_entry.py](hook_entry.py) | hooks アダプタ。各AIツールの hook 入出力方言を吸収して `gate_check.py` を呼び、終了コードに変換する。**判定ロジックは持たない** | hook 設定(`.github/hooks/*.json` / `.claude/settings.json`) |
-| [miniyaml.py](miniyaml.py) | スキーマ(YAML)を読む限定パーサー(PyYAML不要)。**真のYAMLの厳密なサブセット**であることをCIで検査している | validate_artifact / render_md / defect_stats |
+| [miniyaml.py](miniyaml.py) | スキーマ(YAML)を読む限定パーサー(PyYAML不要)。**真のYAMLの厳密なサブセット**であることをCIで検査している | validate_artifact / render_md |
 | [validate_artifact.py](validate_artifact.py) | 台帳CSVを `_shared/schemas/` のスキーマで検証。ID書式・必須・許容値・**出典のない explicit 項目**(conventions.md §5-3) | 台帳系スキル(成果物を書いた直後) |
 | [render_md.py](render_md.py) | 台帳CSV + notes.md から人間向け Markdown を生成。**`derivation: proposed` を機械的に別表へ分ける**。`--check` でずれを検出 | 同上 / gate_check / CI |
 
@@ -39,8 +39,12 @@ python .github/skills/_shared/scripts/qa_session.py set-status qa-output/my-sess
 python .github/skills/_shared/scripts/qa_session.py set-gate qa-output/my-session G2 approved
 
 # 不具合分析(qa-defect-analysis)
-python .github/skills/_shared/scripts/defect_stats.py normalize defects.csv -o labeled.yaml
-python .github/skills/_shared/scripts/defect_stats.py stats labeled.yaml
+# 列を下見し、分析に使う列を選んで台帳CSVにする(--keep 省略時は全列を持ち越す)
+python .github/skills/_shared/scripts/defect_stats.py inspect bugs.csv
+python .github/skills/_shared/scripts/defect_stats.py normalize bugs.csv --keep 画面名 -o defects.csv
+# ラベルを埋めたあと。持ち越した列も集計軸にできる
+python .github/skills/_shared/scripts/defect_stats.py stats defects.csv --by 画面名 --cross 画面名:test_gap
+python .github/skills/_shared/scripts/defect_stats.py table defects.csv --columns id,title,type,test_gap
 
 # ペアワイズ生成(qa-test-case-design)
 python .github/skills/_shared/scripts/pairwise.py params.json --format md
@@ -82,7 +86,7 @@ qa-output/<セッション名>/
 - **規約が構造的な保証になる。** conventions.md §5-3 の「proposed を混ぜない」は散文の指示だったが、`render_md.py` が `derivation` 列を見て機械的に別表へ出すので、混ぜること自体ができなくなる。「explicit なのに出典がない」も、指標で事後に測るのではなくスキーマ検証でエラーになる。
 - **LLMが書くファイルからYAMLが消える。** 自前パーサー(`miniyaml.py`)が読むのはメンテナーが書くスキーマだけになり、インデント崩れのような壊れ方の面が減る。
 
-スキーマは [_shared/schemas/](../schemas/) にあり、台帳・列・必須・許容値・Markdown の構成を定義する。**スキーマの無い成果物は従来どおり `.md` を直接書く**(両方が共存する)。
+スキーマは [_shared/schemas/](../schemas/) にあり、台帳・列・必須・許容値・Markdown の構成を定義する。**スキーマの無い成果物は従来どおり `.md` を直接書く**(両方が共存する)。不具合分析の `01-defect-analysis/defects.csv` はこちら側 — 集計と転記防止のための**作業台帳**であり、スキーマ検証・レンダリングの対象ではない(`.md` は直接書く)。
 
 厳密に列へ割り切らない箇所もある。シナリオの手順のように「1件が複数行を持つ」データは、子テーブルへ正規化せず**セル内改行(Excel なら Alt+Enter)で1行=1ステップ**として持つ。多少のファジーさと引き換えに、表計算で書けることを優先している。
 

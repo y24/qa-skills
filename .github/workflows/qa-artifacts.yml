@@ -178,17 +178,34 @@ jobs:
           sys.exit(1 if bad else 0)
           PY
 
-      - name: defect_stats が miniyaml 移行後も同じ結果を出すこと
+      - name: defect_stats が列を落とさず正規化し、集計まで往復すること
         run: |
           set -e
           mkdir -p "$FX"
-          printf 'id,title,description\nBUG-1,"合計: 不一致",請求合計が誤る\nBUG-2,権限漏れ,承認できる\n' > "$FX/bugs.csv"
-          python "$SCRIPTS/defect_stats.py" normalize "$FX/bugs.csv" -o "$FX/labeled.yaml" > /dev/null
-          # コロンを含むタイトルが引用され、読み戻せること(miniyaml との往復)
-          grep -q 'title: "合計: 不一致"' "$FX/labeled.yaml" \
-            || { echo '::error::コロンを含むタイトルが引用されていません'; exit 1; }
-          python "$SCRIPTS/defect_stats.py" stats "$FX/labeled.yaml" > /dev/null
-          echo "OK: CSV→YAML雛形→読み戻しが通ります"
+          printf 'id,title,画面名,detected\nBUG-1,"合計, 不一致",請求一覧,本番流出\nBUG-2,権限漏れ,承認一覧,結合テスト\n' > "$FX/bugs.csv"
+          # 既定では元の列を落とさずに持ち越す(--keep 省略時は全列)
+          python "$SCRIPTS/defect_stats.py" normalize "$FX/bugs.csv" -o "$FX/defects.csv" > /dev/null
+          head -1 "$FX/defects.csv" | grep -q '画面名' \
+            || { echo '::error::持ち越すはずの列が落ちています'; exit 1; }
+          grep -q '"合計, 不一致"' "$FX/defects.csv" \
+            || { echo '::error::カンマを含むタイトルが引用されていません'; exit 1; }
+          # ラベル列と同名の列を持ち越したときに列が二重にならないこと
+          test "$(head -1 "$FX/defects.csv" | tr ',' '\n' | grep -cx 'detected')" = "1" \
+            || { echo '::error::ラベル列が二重になっています'; exit 1; }
+          # 持ち越した列を集計軸にできること(件数はスクリプトが正)
+          python "$SCRIPTS/defect_stats.py" stats "$FX/defects.csv" --by 画面名 > "$FX/stats.md"
+          grep -q '総件数: \*\*2件\*\*' "$FX/stats.md" \
+            || { echo '::error::集計件数が合いません'; exit 1; }
+          grep -q '列「画面名」の分布' "$FX/stats.md" \
+            || { echo '::error::--by で指定した列の分布が出ていません'; exit 1; }
+          # --keep で選ばなかった列は持ち越されないこと(AIが取捨選択できる)
+          python "$SCRIPTS/defect_stats.py" normalize "$FX/bugs.csv" --keep 画面名 -o "$FX/kept.csv" > /dev/null
+          if grep -q '本番流出' "$FX/kept.csv"; then
+            echo '::error::--keep で選ばなかった列が持ち越されています'; exit 1
+          fi
+          python "$SCRIPTS/defect_stats.py" table "$FX/defects.csv" --columns id,title | grep -q 'BUG-1' \
+            || { echo '::error::table がMarkdown表を出していません'; exit 1; }
+          echo "OK: CSV→台帳CSV→集計・表の往復が通ります"
 
       - name: フィクスチャ作成(検出されるべき欠陥を仕込む)
         run: |

@@ -15,7 +15,7 @@ tools: ["read", "search", "edit", "execute", "todo"]
    - `.github/skills/_shared/subagent-contract.md` — 入出力契約
    - SKILL.md の「実行前に読むこと」が挙げるファイル
 3. `.github/skills/_shared/subagent-contract.md` の契約に従って実行する:
-   - **ユーザーへの質問・承認はできない。** 確認が必要な事項は出力 JSON の `pending_questions` / `proposals` として親へ返す。ただし**実装の挙動・詳細設計を問う項目は入れない** — `search` / `read` で資料とコードを調べて確定させる(conventions.md §2-1)
+   - **ユーザーへの質問・承認はできない。** 確認が必要な事項は出力 JSON の `pending_questions` / `proposals` として親へ返す。実装の挙動を問う項目は `options` の先頭を「設計書・実装を確認して確定する(推奨)」にする(conventions.md §2-1)
    - 成果物は `session_dir`/`artifact` に書き出し、`lint_output.py` の ERROR を解消してから出力 JSON を返す
    - `run_mode`(quick / grounded / process)に応じて、成果物に明記すべき限界と省略してよい手続きを判断する(skill-map.md §2)
    - `qa-session.json` は更新しない(親の責務)

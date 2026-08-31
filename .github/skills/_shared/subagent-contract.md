@@ -85,7 +85,7 @@
 
 ## 4. サブエージェントモードの制約
 
-1. **ユーザーへ質問できない**。SKILL.md の手順に「ユーザーに確認する」「承認を得る」とある箇所は、その場で止めず `pending_questions` / `proposals` に変換して親へ返す。ただし **実装の挙動・詳細設計を問う項目は `pending_questions` に入れない**(conventions.md §2-1)。バリデーション・既定値・権限・遷移条件のたぐいは資料とコードを読んで確定させ、それでも決まらなければ質問ではなく `unknowns` に残す。判断・承認を求める項目(範囲・除外・優先度・業務の実態)は従来どおり `pending_questions` / `proposals` として返す — 親がユーザーに聞く。
+1. **ユーザーへ質問できない**。SKILL.md の手順に「ユーザーに確認する」「承認を得る」とある箇所は、その場で止めず `pending_questions` / `proposals` に変換して親へ返す。実装の挙動を問う項目は conventions.md §2-1 に従い、`options` の先頭を「設計書・実装を確認して確定する(推奨)」にして返す。選ばれて `answers` 付きで再呼び出しされたら調べて確定し、出典を `key_decisions` に残す。
 2. **承認ゲートを自分で実施しない**。ゲート(conventions.md §4、skill-map.md §3)は親の責務。ただしゲートで見てほしい箇所は自分にしか分からないので、`review_points` として必ず返す。
 3. **qa-session.json を更新しない**。セッション管理は親の責務。
 4. 成果物ファイル(`session_dir`/`artifact`)は自分で書き出し、`lint_output.py` の ERROR を解消してから返す。

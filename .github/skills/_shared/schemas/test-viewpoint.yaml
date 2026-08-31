@@ -86,3 +86,5 @@ sections:
   - num: 5
     title: カバレッジ確認結果
     from: narrative.coverage
+    # Quick モードでは省略してよい(skill-map.md §2)ので必須にしない
+    required: no

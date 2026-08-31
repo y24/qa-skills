@@ -18,8 +18,10 @@ _shared/skill-map.md §1 が定義元。本スクリプトの対応表はそれ�
 チェック項目:
     1. ファイル名規約     conventions.md §6 の `NN-<固定名>[-<対象>].md` に
                           合致するか。番号帯と固定名の対応も確認(規約外は警告)。
-    2. 必須セクション     各スキルの SKILL.md「出力フォーマット」節で定義された
-                          h2 見出し(## N. <タイトル>)が揃っているか。
+    2. 必須セクション     期待する h2 見出し(## N. <タイトル>)が揃っているか。
+                          定義元は、台帳系(schemas/<種別>.yaml がある成果物)は
+                          その yaml の sections、それ以外は各スキルの SKILL.md
+                          「出力フォーマット」節。
                           照合は寛容(番号+先頭キーワードの部分一致)。
                           欠落=エラー、順序・番号違い=警告。
     3. evidence_level     分析・レビュー系成果物で、evidence_level 列の空セルが
@@ -52,6 +54,17 @@ for _stream in (sys.stdout, sys.stderr):
             _stream.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
             pass
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import miniyaml  # noqa: E402
+
+# 台帳系成果物のスキーマ置き場(_shared/schemas/)
+SCHEMA_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), os.pardir, "schemas"
+)
+
+TRUE_VALUES = ("yes", "true", "on", "1")
 
 TOOL_NOTE = (
     "QA成果物フォーマットlint(機械チェック。内容の質=指摘や分析の妥当性は判定しません)"
@@ -111,10 +124,14 @@ AMBIGUOUS_WORDS = (
 AMBIGUOUS_TARGET_COLUMNS = ("期待結果", "判定基準")
 
 # ---------------------------------------------------------------------------
-# 必須セクション対応表
+# 必須セクション対応表(**Markdown を直接書く成果物だけ**)
 # 各エントリ: (規約上の番号, セクション名, 照合キーワード群, 必須か)
 # 照合は「見出しタイトルにキーワードのいずれかが含まれるか」の寛容一致。
 # 出典: 各スキルの SKILL.md「出力フォーマット」節(コメント参照)
+#
+# **台帳系(_shared/schemas/<種別>.yaml がある成果物)はここに書かない。**
+# その .md は render_md.py が yaml の sections から生成するので、定義元は yaml。
+# section_spec() が実行時に読む(台帳系を追加してもこの表の追随は要らない)。
 # ---------------------------------------------------------------------------
 SECTION_SPECS = {
     # 出典: qa-defect-analysis/SKILL.md
@@ -127,34 +144,6 @@ SECTION_SPECS = {
             (4, "根本原因の仮説", ("根本原因",), True),
             (5, "導出した回帰テスト観点", ("回帰テスト観点", "回帰観点"), True),
             (6, "不足情報・次のアクション", ("不足情報",), True),
-        ],
-    },
-    # 出典: schemas/intent-recovery.yaml の sections(render_md.py が生成する形)
-    "intent-recovery": {
-        "label": "意図モデル",
-        "sections": [
-            (1, "Actor 一覧", ("actor",), True),
-            (2, "ドメインオブジェクトと状態", ("オブジェクト",), True),
-            (3, "状態遷移", ("状態遷移",), True),
-            (4, "業務ゴール", ("業務ゴール",), True),
-            (5, "ロール間の引き継ぎ", ("引き継ぎ", "handoff"), True),
-            (6, "後続影響", ("後続影響", "downstream"), True),
-            (7, "ユーザーストーリー", ("ストーリー",), True),
-            (8, "確認が必要な事項", ("確認が必要",), True),
-            (9, "不足情報", ("不足情報",), True),
-        ],
-    },
-    # 出典: schemas/scenario-design.yaml の sections(render_md.py が生成する形)
-    "scenario-design": {
-        "label": "業務シナリオ",
-        "sections": [
-            (1, "シナリオ一覧", ("シナリオ一覧",), True),
-            (2, "シナリオ詳細", ("シナリオ詳細",), True),
-            (3, "提案シナリオ", ("提案シナリオ",), True),
-            (4, "カバレッジ", ("カバレッジ",), True),
-            (5, "対象外としたシナリオとその理由", ("対象外",), True),
-            (6, "期待結果が定義できなかったシナリオ", ("定義できなかった",), True),
-            (7, "不足情報", ("不足情報",), True),
         ],
     },
     # 出典: qa-test-strategy/SKILL.md「出力フォーマット(20-test-strategy.md)」
@@ -195,28 +184,6 @@ SECTION_SPECS = {
             (3, "検出一覧", ("検出一覧", "検出"), True),
             (4, "ユーザー判定結果", ("ユーザー判定",), True),
             (5, "用語集への追記候補", ("用語集",), True),
-        ],
-    },
-    # 出典: schemas/test-viewpoint.yaml の sections(render_md.py が生成する形)
-    "test-viewpoint": {
-        "label": "テスト観点一覧",
-        "sections": [
-            (1, "土台の分解表", ("分解",), True),
-            (2, "テスト観点一覧", ("テスト観点一覧", "観点一覧"), True),
-            (3, "対象外とした観点とその理由", ("対象外",), True),
-            (4, "期待結果が定義できなかった観点", ("定義できなかった",), True),
-            # 5 は Quick モードで省略できるため必須にしない(skill-map.md §2)
-            (5, "カバレッジ確認結果", ("カバレッジ",), False),
-        ],
-    },
-    # 出典: schemas/test-case.yaml の sections(render_md.py が生成する形)
-    "test-case": {
-        "label": "テストケース",
-        "sections": [
-            (1, "展開サマリー", ("サマリ",), True),
-            (2, "テストケース一覧", ("テストケース一覧", "ケース一覧"), True),
-            (3, "実行順序・依存関係の注意", ("実行順序", "依存関係"), True),
-            (4, "未展開の観点とその理由", ("未展開",), True),
         ],
     },
     # 出典: qa-test-case-design/SKILL.md「出力フォーマット(32-test-data.md)」
@@ -536,14 +503,55 @@ def detect_source_analysis_mode(result, h1s, h2s):
     return best_mode
 
 
+_SCHEMA_CACHE = {}
+
+
+def section_spec(artifact_type, result=None):
+    """成果物種別の期待セクション定義を返す。判定できなければ None。
+
+    台帳系(_shared/schemas/<種別>.yaml がある成果物)の .md は render_md.py が
+    yaml の sections から生成するので、**yaml が唯一の定義元**。ここに写しを
+    持たず実行時に読む。それ以外は SECTION_SPECS(SKILL.md が定義元)。
+    """
+    path = os.path.join(SCHEMA_DIR, "{}.yaml".format(artifact_type))
+    if not os.path.isfile(path):
+        return SECTION_SPECS.get(artifact_type)
+    try:
+        if path not in _SCHEMA_CACHE:
+            _SCHEMA_CACHE[path] = miniyaml.load(path)
+        schema = _SCHEMA_CACHE[path]
+        sections = []
+        for sec in schema.get("sections") or []:
+            title = str(sec["title"]).strip()
+            required = str(sec.get("required", "yes")).strip().lower() in TRUE_VALUES
+            # 生成物なので見出しは yaml の title そのもの。照合キーワードも title
+            sections.append((int(sec["num"]), title, (title,), required))
+    except Exception as exc:  # スキーマが壊れていたら黙って素通りさせない
+        if result is not None:
+            result.add(
+                "ERROR", None, "section",
+                "台帳系のセクション定義元 %s を読めません(%s)" % (path, exc),
+            )
+        return None
+    if not sections:
+        return None
+    return {
+        "label": str(schema.get("title") or artifact_type),
+        "source": "_shared/schemas/{}.yaml の sections".format(artifact_type),
+        "sections": sections,
+    }
+
+
 def check_sections(result, artifact_type, h1s, h2s):
-    """チェック2: 必須セクション(各 SKILL.md 出力フォーマット節)"""
+    """チェック2: 必須セクション(定義元は section_spec を参照)"""
     if artifact_type == "source-analysis":
         mode = detect_source_analysis_mode(result, h1s, h2s)
         result.mode = mode
         spec = SOURCE_ANALYSIS_MODES[mode]
     else:
-        spec = SECTION_SPECS[artifact_type]
+        spec = section_spec(artifact_type, result)
+        if spec is None:
+            return  # 定義元が無い/読めない。理由は section_spec が記録済み
 
     assigned = set()  # 既にどれかの期待セクションに割り当てた h2 のインデックス
     matched = []      # [(期待番号, h2インデックス)]
@@ -571,8 +579,9 @@ def check_sections(result, artifact_type, h1s, h2s):
             if required:
                 result.add(
                     "ERROR", None, "section",
-                    "必須セクション「## %d. %s」が見つかりません(出典: %s の出力フォーマット)"
-                    % (exp_num, exp_title, spec["label"]),
+                    "必須セクション「## %d. %s」が見つかりません(定義元: %s)"
+                    % (exp_num, exp_title,
+                       spec.get("source") or "%s の SKILL.md 出力フォーマット節" % spec["label"]),
                 )
             continue
         assigned.add(found_idx)
@@ -821,7 +830,7 @@ def print_text_report(results):
             label = (
                 SOURCE_ANALYSIS_MODES[r.mode]["label"]
                 if r.artifact_type == "source-analysis" and r.mode
-                else SECTION_SPECS.get(r.artifact_type, {}).get("label", r.artifact_type)
+                else (section_spec(r.artifact_type) or {}).get("label", r.artifact_type)
             )
             print("種別: %s (%s)" % (r.artifact_type, label))
         for issue in r.issues:

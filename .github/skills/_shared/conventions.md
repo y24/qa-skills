@@ -125,7 +125,7 @@ qa-output/<セッション名>/
   30-test-viewpoint.md        ← 生成物。ゲートで人間が読むのはこれ
 ```
 
-- 書いたら `python _shared/scripts/render_md.py <成果物ディレクトリ>` で Markdown を生成する。検証は `validate_artifact.py <成果物ディレクトリ>`。
+- 書いたら `python _shared/scripts/normalize_ledger.py <成果物ディレクトリ>`(CSVの正規化)→ `validate_artifact.py <成果物ディレクトリ>`(規約検証)→ `render_md.py <成果物ディレクトリ>`(Markdown生成)の順にかける。
 - **生成された `.md` を直接編集しない**(ずれは機械検出される)。直したいことがあれば CSV か notes.md を直して再生成する。
 - **`derivation: proposed` の隔離(§5-3)はレンダラが機械的に行う。** 別表への振り分けを手で書かない。
 - CSV の書き方: 文字コードは UTF-8(BOM付きでよい。Excel が保存する cp932 も読める)。複数値の列(`traces_to` / `sources` 等)は `;` 区切りで、**セル内改行でも区切れる**(Excel なら Alt+Enter)。シナリオの手順のように1行=1項目で読ませたい列はセル内改行で書く(厳密に列へ割らないのは、表計算で書けることを優先しているため)。空欄は「未設定」、`derivation` の空欄は explicit(§5-2)。

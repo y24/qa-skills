@@ -73,7 +73,7 @@ Quick モードでは、**入力に書かれていない業務知識・状態・
 
 1. `30-test-viewpoint/<台帳名>.csv` を書く。台帳名・列・必須・許容値の定義元は [_shared/schemas/test-viewpoint.yaml](../_shared/schemas/test-viewpoint.yaml)
 2. `30-test-viewpoint/notes.md` に叙述セクションを書く(成果物と同じ `## <番号>. <タイトル>` の見出し)
-3. `validate_artifact.py 30-test-viewpoint` で規約検証 → `render_md.py 30-test-viewpoint` で Markdown を生成
+3. `normalize_ledger.py 30-test-viewpoint` で台帳CSVを正規化 → `validate_artifact.py 30-test-viewpoint` で規約検証 → `render_md.py 30-test-viewpoint` で Markdown を生成
 
 `derivation: proposed` の別表・別節への振り分けはレンダラが機械的に行う。手で分けない。
 

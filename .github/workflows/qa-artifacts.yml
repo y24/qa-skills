@@ -76,7 +76,7 @@ jobs:
           set -e
           for s in qa_session.py defect_stats.py pairwise.py trace_check.py \
                    lint_output.py metrics.py gate_check.py hook_entry.py \
-                   miniyaml.py validate_artifact.py render_md.py; do
+                   miniyaml.py normalize_ledger.py validate_artifact.py render_md.py; do
             echo "--- $s"
             python "$SCRIPTS/$s" --help > /dev/null
           done
@@ -429,6 +429,45 @@ jobs:
           cp "$FX/keep.csv" "$A/viewpoints.csv"
           python "$SCRIPTS/validate_artifact.py" "$A" > /dev/null
           echo "OK: スキーマ検証が規約違反を捕まえます"
+
+      - name: セル内改行のエスケープが検出され、正規化で解消できること
+        run: |
+          set -e
+          # AIツールが書いたCSVは、セル内改行が `&#10;` のまま残ることがある。
+          # 表計算で1行に潰れて読めなくなるので、検証で落ちることと
+          # normalize_ledger.py で実改行に直せることの両方を見る
+          A="$FX/qa-output/yml/30-test-viewpoint"
+          cp "$A/viewpoints.csv" "$FX/keep_escape.csv"
+          python - "$A/viewpoints.csv" <<'ESC'
+          import csv, io, sys
+          from pathlib import Path
+          p = Path(sys.argv[1])
+          rows = list(csv.reader(io.StringIO(p.read_text(encoding="utf-8-sig"), newline="")))
+          rows[1][2] += "&#10;2. 金額を空のまま申請する"
+          buf = io.StringIO(newline="")
+          csv.writer(buf, lineterminator=chr(13) + chr(10)).writerows(rows)
+          with open(p, "w", encoding="utf-8-sig", newline="") as f:
+              f.write(buf.getvalue())
+          ESC
+          if python "$SCRIPTS/validate_artifact.py" "$A" > /dev/null; then
+            echo '::error::エスケープされた改行が残った台帳を見逃しました'
+            exit 1
+          fi
+          python "$SCRIPTS/validate_artifact.py" "$A" | grep -q escaped_newline             || { echo '::error::期待したルール(escaped_newline)が発火していません'; exit 1; }
+          python "$SCRIPTS/normalize_ledger.py" "$A"
+          python "$SCRIPTS/validate_artifact.py" "$A" > /dev/null
+          python - "$A/viewpoints.csv" <<'ESCCHECK'
+          import csv, io, sys
+          from pathlib import Path
+          rows = list(csv.reader(io.StringIO(Path(sys.argv[1]).read_text(encoding="utf-8-sig"), newline="")))
+          if chr(10) not in rows[1][2]:
+              print("::error::実改行になっていません:", repr(rows[1][2]))
+              raise SystemExit(1)
+          ESCCHECK
+          # 何度かけても同じ結果になること(冪等)
+          python "$SCRIPTS/normalize_ledger.py" "$A" | grep -q "変更なし"             || { echo '::error::正規化が冪等ではありません'; exit 1; }
+          cp "$FX/keep_escape.csv" "$A/viewpoints.csv"
+          echo "OK: エスケープを検出し、正規化で解消できます"
 
       - name: Markdown を直接編集したら検出されること
         run: |

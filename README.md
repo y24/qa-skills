@@ -62,6 +62,7 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
       gate_check.py         # ★検証の単一入口(lint+突合+スキーマをゲート単位で束ねる)
       hook_entry.py         # hooksアダプタ(各ツールの入出力方言を吸収する薄い層)
       miniyaml.py           # スキーマ(YAML)を読む限定パーサー(PyYAML不要)
+      normalize_ledger.py   # 台帳CSVの正規化(セル内改行を実改行に揃える)
       validate_artifact.py  # 台帳CSVのスキーマ検証
       render_md.py          # 台帳CSV + notes.md → 人間向けMarkdown
                             #   (proposed を機械的に別表へ)

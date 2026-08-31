@@ -133,7 +133,7 @@ business-scenario-patterns.md の各パターンを、対象の業務ゴール�
 
 1. `11-scenario-design/<台帳名>.csv` を書く。台帳名・列・必須・許容値の定義元は [_shared/schemas/scenario-design.yaml](../_shared/schemas/scenario-design.yaml)
 2. `11-scenario-design/notes.md` に叙述セクションを書く(成果物と同じ `## <番号>. <タイトル>` の見出し)
-3. `validate_artifact.py 11-scenario-design` で規約検証 → `render_md.py 11-scenario-design` で Markdown を生成
+3. `normalize_ledger.py 11-scenario-design` で台帳CSVを正規化 → `validate_artifact.py 11-scenario-design` で規約検証 → `render_md.py 11-scenario-design` で Markdown を生成
 
 `derivation: proposed` の別表・別節への振り分けはレンダラが機械的に行う。手で分けない。
 

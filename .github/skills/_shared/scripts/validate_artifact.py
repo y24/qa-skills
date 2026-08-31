@@ -16,6 +16,10 @@
     explicit_requires_sources §5-3  **explicit なのに出典がない = 根拠なし事実主張**
     no_vague_expected               期待結果に合否判定できない語を使わない
 
+スキーマのルールとは別に、台帳の書式そのものも見る(`escaped_newline`)。
+セル内改行が `&#10;` のまま残った台帳は表計算で1行に潰れて読めないので、
+`normalize_ledger.py` をかけ忘れたまま先へ進めないようにする。
+
 `explicit_requires_sources` が中心。conventions.md §11 は「根拠なし事実主張率
 (目標0%)」を事後の指標として測っていたが、スキーマ検証では**書いた時点で
 エラーになる**。「指標の悪化ではなく規約違反として扱う」が文字どおりになる。
@@ -49,6 +53,7 @@ for _stream in (sys.stdout, sys.stderr):
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import miniyaml  # noqa: E402
+import normalize_ledger  # noqa: E402
 
 SCHEMA_DIR = Path(__file__).resolve().parent.parent / "schemas"
 ARTIFACT_RE = re.compile(r"^(\d{2})-([0-9a-z][0-9a-z\-]*)$")
@@ -369,6 +374,26 @@ def rule_no_vague_expected(result, ledger, records):
                     break
 
 
+def check_escaped_newlines(result, key, records):
+    """セル内改行が `&#10;` のまま残っていないか(スキーマ非依存の書式検査)。
+
+    AIツールがCSVを書き出すときに数値文字参照のまま残ることがある。表計算で
+    1行に潰れて読めず、リスト型セルの区切り(実改行 / `;`)としても効かない。
+    直し方は決まっているので、検出したら `normalize_ledger.py` を案内する。
+    """
+    for idx, rec in enumerate(records, start=1):
+        rid = str(rec.get("id", "")).strip() or "{}[{}件目]".format(key, idx)
+        for name, value in rec.items():
+            values = value if isinstance(value, list) else [value]
+            if not any(normalize_ledger.has_escaped_newline(v) for v in values):
+                continue
+            result.add("ERROR", rid, "escaped_newline",
+                       "`{}` の改行が `&#10;` のままです(台帳 {})。"
+                       "`normalize_ledger.py <成果物ディレクトリ>` で実改行に直して"
+                       "ください(conventions.md §6-2)".format(name, key))
+            break
+
+
 RULES = {
     "unique_ids": rule_unique_ids,
     "id_pattern": rule_id_pattern,
@@ -433,6 +458,7 @@ def validate(path):
                 if k not in known:
                     result.add("WARN", rid, "unknown_field",
                                "スキーマにないフィールドです: `{}`(台帳 {})".format(k, key))
+        check_escaped_newlines(result, key, records)
         usable.append((ledger, records))
 
     # 台帳をまたいだID重複も見る(conventions.md §6-1 のIDは成果物内で一意)

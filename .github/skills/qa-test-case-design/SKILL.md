@@ -105,7 +105,7 @@ python .github/skills/_shared/scripts/lint_output.py --session-dir <セッショ
 
 1. `31-test-case/<台帳名>.csv` を書く。台帳名・列・必須・許容値の定義元は [_shared/schemas/test-case.yaml](../_shared/schemas/test-case.yaml)
 2. `31-test-case/notes.md` に叙述セクションを書く(成果物と同じ `## <番号>. <タイトル>` の見出し)
-3. `validate_artifact.py 31-test-case` で規約検証 → `render_md.py 31-test-case` で Markdown を生成
+3. `normalize_ledger.py 31-test-case` で台帳CSVを正規化 → `validate_artifact.py 31-test-case` で規約検証 → `render_md.py 31-test-case` で Markdown を生成
 
 `derivation: proposed` の別表・別節への振り分けはレンダラが機械的に行う。手で分けない。
 

@@ -21,6 +21,7 @@ QAスキル群のワークフローのうち、**入出力が決まっていて�
 | [gate_check.py](gate_check.py) | **検証の単一入口。** lint・ID突合・スキーマ検証・レンダリング一致を承認ゲート単位で束ねる。判定基準を1箇所に閉じるためのもの | SKILL.md の手順 / hooks / CI(すべてここを呼ぶ) |
 | [hook_entry.py](hook_entry.py) | hooks アダプタ。各AIツールの hook 入出力方言を吸収して `gate_check.py` を呼び、終了コードに変換する。**判定ロジックは持たない** | hook 設定(`.github/hooks/*.json` / `.claude/settings.json`) |
 | [miniyaml.py](miniyaml.py) | スキーマ(YAML)を読む限定パーサー(PyYAML不要)。**真のYAMLの厳密なサブセット**であることをCIで検査している | validate_artifact / render_md |
+| [normalize_ledger.py](normalize_ledger.py) | 台帳CSVの正規化。`&#10;` のまま書き出されたセル内改行を実改行に戻し、表計算で開ける形(BOM付きUTF-8 + CRLF)に揃える。`--check` で検出のみ | 台帳系スキル(CSVを書いた直後・検証の前) |
 | [validate_artifact.py](validate_artifact.py) | 台帳CSVを `_shared/schemas/` のスキーマで検証。ID書式・必須・許容値・**出典のない explicit 項目**(conventions.md §5-3) | 台帳系スキル(成果物を書いた直後) |
 | [render_md.py](render_md.py) | 台帳CSV + notes.md から人間向け Markdown を生成。**`derivation: proposed` を機械的に別表へ分ける**。`--check` でずれを検出 | 同上 / gate_check / CI |
 
@@ -60,6 +61,7 @@ python .github/skills/_shared/scripts/gate_check.py qa-output/my-session --unapp
 python .github/skills/_shared/scripts/gate_check.py --files qa-output/my-session/30-test-viewpoint.md
 
 # 構造化成果物(台帳CSVが正・Markdownは生成物 — conventions.md §6-2)
+python .github/skills/_shared/scripts/normalize_ledger.py qa-output/my-session/30-test-viewpoint
 python .github/skills/_shared/scripts/validate_artifact.py qa-output/my-session/30-test-viewpoint
 python .github/skills/_shared/scripts/render_md.py qa-output/my-session/30-test-viewpoint
 python .github/skills/_shared/scripts/render_md.py --session-dir qa-output/my-session --check
@@ -89,6 +91,8 @@ qa-output/<セッション名>/
 スキーマは [_shared/schemas/](../schemas/) にあり、台帳・列・必須・許容値・Markdown の構成を定義する。**スキーマの無い成果物は従来どおり `.md` を直接書く**(両方が共存する)。不具合分析の `01-defect-analysis/defects.csv` はこちら側 — 集計と転記防止のための**作業台帳**であり、スキーマ検証・レンダリングの対象ではない(`.md` は直接書く)。
 
 厳密に列へ割り切らない箇所もある。シナリオの手順のように「1件が複数行を持つ」データは、子テーブルへ正規化せず**セル内改行(Excel なら Alt+Enter)で1行=1ステップ**として持つ。多少のファジーさと引き換えに、表計算で書けることを優先している。
+
+AIツールがCSVを書き出すと、このセル内改行が `&#10;`(数値文字参照)のまま残ることがある。そのままでは表計算で1行に潰れて読めないので、**書いた直後に `normalize_ledger.py` をかけて実改行に戻す**。かけ忘れは `validate_artifact.py` が `escaped_newline` で落とすので、hook・CI からも同じ判定が効く。
 
 ## 4層の防御(検証はどこで効くか)
 

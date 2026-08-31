@@ -35,7 +35,7 @@ SKILL.md の Step 3 で各スキルを実行する箇所は、`#tool:agent/runSu
 
 返ってきた出力 JSON は**改変せず正確に扱う**。status で分岐する。
 
-- `needs_user_input` → `pending_questions` を askQuestions で確認し、回答を `answers` に入れて同じ `skill` で再呼び出しする
+- `needs_user_input` → `pending_questions` を仕分ける。**実装の挙動・詳細設計を問うもの**は askQuestions に流さず、conventions.md §2-1 の順(前段の成果物 → 資料 → コード)で `search` / `read` を使って調べ、`answers` に根拠付きで入れる。**判断を仰ぐ質問(範囲・除外・優先度・承認・業務の実態)は askQuestions で確認する** — 代わりに決めない。両方を `answers` に入れて同じ `skill` で再呼び出しする
 - `error` → 内容をユーザーに報告し、「再試行 / このスキルをスキップ / 中断」を選ばせる
 - `completed` → 次へ
 
@@ -71,6 +71,7 @@ SKILL.md の Step 3 で各スキルを実行する箇所は、`#tool:agent/runSu
 - **ゲートの承認を得ずに次のゲートの範囲へ進むこと。**
 - **レビュー依頼(conventions.md §4-1)を出さずに「ゲートが未承認なので進めない」と停止すること。**
 - ヒアリングを自由記述の質問で行うこと(必ず askQuestions で選択式)。
+- サブエージェントの `pending_questions` のうち実装の挙動を問うものを、自分で調べずにユーザーへ転送すること(conventions.md §2-1)。逆に、判断を仰ぐ質問を聞かずに自分で決めることも同じく禁止。
 - runSubagent を介さず、オーケストレーター自身が成果物を作ること。
 - 実行計画に無いスキルを `skill` に指定すること。
 - サブエージェントの出力 JSON を握りつぶしたり改変して扱うこと。

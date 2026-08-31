@@ -73,7 +73,7 @@ GATE_ARTIFACTS = {
     "G2": ("source-analysis", "defect-analysis", "spec-review"),
     "G3": ("intent-recovery", "scenario-design"),
     "G4": ("test-strategy", "test-plan", "test-viewpoint", "test-case",
-           "test-data", "code-review"),
+           "test-data"),
     "G5": ("test-design-review", "improvement"),
 }
 

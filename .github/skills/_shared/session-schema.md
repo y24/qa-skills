@@ -30,10 +30,9 @@
     { "order": 4, "skill": "qa-spec-review",        "gate": "G2", "status": "pending", "output": null, "target": "requirements" },
     { "order": 5, "skill": "qa-scenario-design",    "gate": "G3", "status": "pending",     "output": null },
     { "order": 6, "skill": "qa-test-strategy",      "gate": "G4", "status": "pending",     "output": null },
-    { "order": 7, "skill": "qa-code-review",        "gate": "G4", "status": "skipped",     "output": null },
-    { "order": 8, "skill": "qa-test-viewpoint",     "gate": "G4", "status": "pending",     "output": null },
-    { "order": 9, "skill": "qa-test-case-design",   "gate": "G4", "status": "pending",     "output": null },
-    { "order": 10, "skill": "qa-test-design-review","gate": "G5", "status": "pending",     "output": null }
+    { "order": 7, "skill": "qa-test-viewpoint",     "gate": "G4", "status": "pending",     "output": null },
+    { "order": 8, "skill": "qa-test-case-design",   "gate": "G4", "status": "pending",     "output": null },
+    { "order": 9, "skill": "qa-test-design-review","gate": "G5", "status": "pending",     "output": null }
   ],
   "gates": [
     { "gate": "G1", "status": "approved", "approved_at": "2026-08-30T10:05:00+09:00" },

@@ -8,7 +8,7 @@
 
 使用例:
     python lint_output.py qa-output/session1/30-test-viewpoint.md
-    python lint_output.py 41-code-review.md 31-test-case.md
+    python lint_output.py 40-spec-review.md 31-test-case.md
     python lint_output.py --session-dir qa-output/session1
     python lint_output.py --session-dir qa-output/session1 --json
 
@@ -72,7 +72,6 @@ FIXED_NAMES = {
     "test-case": ("31", "test-case"),
     "test-data": ("32", "test-data"),
     "spec-review": ("40", "spec-review"),
-    "code-review": ("41", "code-review"),
     "test-design-review": ("42", "test-design-review"),
     "improvement": ("90", "improvement"),
 }
@@ -85,7 +84,6 @@ EVIDENCE_TYPES = {
     "scenario-design",
     "test-strategy",
     "spec-review",
-    "code-review",
     "test-design-review",
 }
 
@@ -197,19 +195,6 @@ SECTION_SPECS = {
             (3, "検出一覧", ("検出一覧", "検出"), True),
             (4, "ユーザー判定結果", ("ユーザー判定",), True),
             (5, "用語集への追記候補", ("用語集",), True),
-        ],
-    },
-    # 出典: qa-code-review/SKILL.md
-    "code-review": {
-        "label": "QAコードレビュー",
-        "sections": [
-            (1, "レビュー範囲と走査した品質特性", ("レビュー範囲",), True),
-            (2, "指摘一覧", ("指摘",), True),
-            (3, "コードで保証済みの事項(テスト軽減候補)", ("保証済み",), True),
-            (4, "テスト観点への引き継ぎ", ("引き継ぎ", "テスト観点"), True),
-            (5, "回帰観点カタログとの突合結果", ("突合", "回帰観点カタログ"), True),
-            (6, "ユーザー判定と対応結果", ("ユーザー判定",), True),
-            (7, "チェックポイント更新の提案", ("チェックポイント",), True),
         ],
     },
     # 出典: qa-test-viewpoint/SKILL.md

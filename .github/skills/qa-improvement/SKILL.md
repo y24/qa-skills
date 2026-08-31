@@ -23,7 +23,6 @@ description: QAフロー完了後の振り返りレポート(90-improvement.md)�
 | 各スキルの SKILL.md | 手順の抜け、冗長な質問、出力フォーマットの不備 | マスター(メンテナー) |
 | _shared/conventions.md / skill-map.md | 対話・ゲート・依存関係・モードの改善 | マスター(メンテナー) |
 | references/review-checklist.md | 頻出指摘のFセクションへの追記候補 | マスター(メンテナー) |
-| references/code-review-viewpoints.md | QAコードレビューで効いた指摘パターンの追記候補 | マスター(メンテナー) |
 | references/business-scenario-patterns.md | カタログに無かった業務プロセスの型 | マスター(メンテナー) |
 | references/defect-taxonomy.md | 分類軸に収まらなかった不具合のラベル追加候補 | マスター(メンテナー) |
 | references/regression-viewpoint-catalog.md | 新しい回帰観点の追記候補(未反映分) | プロジェクト(ユーザー) |
@@ -89,7 +88,7 @@ conventions.md §11 の指標を算出する。**数値そのものではなく�
 
 ### 6. ナレッジ追記候補の一覧化
 
-回帰観点カタログ・レビューチェックリストFセクション・code-review-viewpoints・business-scenario-patterns・domain-glossary への追記候補を、各ファイルのエントリ書式に従った**そのまま貼り付けられる本文**で列挙する。セッション中に承認済みで既に追記されたものは「反映済み」として区別して記載する(**ここが蓄積されないとスキルセットが成長しない**)。
+回帰観点カタログ・レビューチェックリストFセクション・business-scenario-patterns・domain-glossary への追記候補を、各ファイルのエントリ書式に従った**そのまま貼り付けられる本文**で列挙する。セッション中に承認済みで既に追記されたものは「反映済み」として区別して記載する(**ここが蓄積されないとスキルセットが成長しない**)。
 
 ### 7. 運用フィードバック(ユーザーへ)
 

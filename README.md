@@ -46,6 +46,7 @@ AIエージェントで支援するスキルセット。特定のAIツールに�
       domain-glossary.md                # ★ドメイン用語の蓄積場所
     hooks.md                # ★hooksが何を保証するかの唯一の定義元
     schemas/                # ★台帳系成果物のスキーマ(列・必須・許容値・MD構成)
+      source-analysis.yaml  #   根拠抽出(深さAの機能台帳FN / 用語対応表。深さB・Cは.md直書き)
       intent-recovery.yaml  #   意図モデル(ACT / TRN / BG の3台帳)
       scenario-design.yaml  #   業務シナリオ(一覧・詳細・提案を1台帳から描き分ける)
       test-viewpoint.yaml

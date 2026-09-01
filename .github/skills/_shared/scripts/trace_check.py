@@ -13,6 +13,7 @@ LLMによる目視突合の代替であり、検出された孤児・欠落を�
 ID体系は conventions.md §6-1、成果物の対応関係は _shared/skill-map.md §1 が定義元。
 
 対象ファイル(存在しないものは関連チェックをスキップ):
+    *-source-analysis.md    根拠抽出(qa-source-analysis。機能台帳 FN の定義元)
     *-intent-recovery.md    意図モデル(qa-intent-recovery)
     *-scenario-design.md    業務シナリオ(qa-scenario-design)
     *-test-viewpoint.md     テスト観点一覧(qa-test-viewpoint)
@@ -34,10 +35,12 @@ ID体系は conventions.md §6-1、成果物の対応関係は _shared/skill-map
     8. 未反映シナリオ     : どの観点からも参照されないシナリオ(情報提供のみ)
     9. 意図モデル参照整合 : シナリオの traces_to が指す ACT/BG/TRN が
                             意図モデルに実在するか
+   10. 機能参照の整合     : 観点・シナリオが指す FN-NN が根拠抽出の機能台帳に
+                            実在するか
 
 exit code:
     0 = 検出なし
-    1 = 検出あり(チェック1,3,4,5,6,7,9のいずれか。チェック2,8は影響しない)
+    1 = 検出あり(チェック1,3,4,5,6,7,9,10のいずれか。チェック2,8は影響しない)
     2 = 使用法エラー(ディレクトリ不存在等)
 """
 
@@ -250,6 +253,7 @@ def main():
         return 2
 
     # --- ファイル自動検出 ---
+    sa_files = sorted(session_dir.glob("*-source-analysis.md"))
     im_files = sorted(session_dir.glob("*-intent-recovery.md"))
     sc_files = sorted(session_dir.glob("*-scenario-design.md"))
     vp_files = sorted(session_dir.glob("*-test-viewpoint.md"))
@@ -259,6 +263,7 @@ def main():
     tdr_files = sorted(session_dir.glob("*-test-design-review.md"))
 
     files_info = {
+        "根拠抽出": [f.name for f in sa_files],
         "意図モデル": [f.name for f in im_files],
         "業務シナリオ": [f.name for f in sc_files],
         "観点一覧": [f.name for f in vp_files],
@@ -285,6 +290,10 @@ def main():
         tc_texts[f.name] = text
         for cid, refs in extract_testcase_rows(text):
             tc_rows.append((f.name, cid, refs))
+
+    fn_ids = set()        # 根拠抽出の機能台帳が定義する FN
+    for f in sa_files:
+        fn_ids |= extract_defined_ids(read_text(f), ("FN",))
 
     model_ids = set()     # 意図モデルが定義する ACT/BG/TRN
     for f in im_files:
@@ -486,6 +495,32 @@ def main():
                         "detail": f"{fname}: {sid or '(ID不明)'} → {ref}(意図モデルに存在しない)",
                     })
         add_check(9, "意図モデル参照の整合", "finding" if findings else "ok", findings)
+
+    # --- チェック10: 機能参照の整合(観点・シナリオ → 機能台帳)---
+    # 観点の「対象」列・traces_to、シナリオの traces_to に現れる FN-NN が
+    # 根拠抽出(00)の機能台帳に実在するか(conventions.md §6-1)
+    fn_refs = set()       # (file, 参照元ID, FN-ID)
+    for f in vp_files:
+        for label in ("traces_to", "対象"):
+            for vid, refs in extract_rows_with_ref(vp_texts[f.name], label):
+                fn_refs |= {(f.name, vid, r) for r in refs if r.startswith("FN-")}
+    for fname, sid, refs in sc_rows:
+        fn_refs |= {(fname, sid, r) for r in refs if r.startswith("FN-")}
+
+    if not sa_files:
+        add_check(10, "機能参照の整合", "skipped", note="根拠抽出ファイルなし")
+    elif not fn_refs:
+        add_check(10, "機能参照の整合", "skipped",
+                  note="観点・シナリオに FN 参照がない(機能起点で設計していない可能性)")
+    else:
+        findings = []
+        for fname, rid, ref in sorted(fn_refs):
+            if ref not in fn_ids:
+                findings.append({
+                    "file": fname, "id": rid, "function_id": ref,
+                    "detail": f"{fname}: {rid or '(ID不明)'} → {ref}(機能台帳に存在しない)",
+                })
+        add_check(10, "機能参照の整合", "finding" if findings else "ok", findings)
 
     has_findings = any(c["status"] == "finding" for c in checks)
 

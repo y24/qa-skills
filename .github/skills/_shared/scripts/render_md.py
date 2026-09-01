@@ -20,6 +20,10 @@ conventions.md §5-3 は「`derivation: proposed` の項目を explicit / inferr
     python render_md.py --session-dir qa-output/s1                # まとめて生成
     python render_md.py --session-dir qa-output/s1 --check        # ずれの検出のみ
 
+スキーマが `variants`(深さ・種別で節構成が変わる成果物)を持つ場合は、notes.md の
+h1 から変種を判別し、その変種のタイトル・節で生成する。台帳ディレクトリ運用をしない
+変種(`structured: no`)は生成の対象外(`.md` を直接書く運用)。
+
 `--check` は既存の Markdown が台帳CSV + notes.md から生成される内容と一致するかを見る。
 一致しない場合は**Markdown が直接編集された**か、台帳を変えて再生成していない。
 どちらも「台帳が正」の前提が壊れているので検出する(hook と CI から呼ばれる)。
@@ -201,13 +205,20 @@ def render_detail(ledger, data, filt=None, schema=None):
 
 
 def render(schema, data, src_name):
-    target = (data.get("meta") or {}).get("target", "") or "(対象未設定)"
-    run_mode = str((data.get("meta") or {}).get("run_mode", "") or "").strip()
+    meta = data.get("meta") or {}
+    target = meta.get("target", "") or "(対象未設定)"
+    run_mode = str(meta.get("run_mode", "") or "").strip()
+    # 変種(深さA/B/C のように節構成が変わる成果物)。無ければ None
+    variant = meta.get("variant")
     narrative = data.get("narrative") or {}
 
-    lines = ["# {}: {}".format(schema.get("title", schema["artifact"]), target), ""]
+    lines = ["# {}: {}".format(
+        validate_artifact.title_of(schema, variant), target), ""]
     lines.append(GENERATED_NOTE.format(src=src_name))
     lines.append("")
+    if variant and str(variant.get("note", "") or "").strip():
+        lines.append("> {}".format(str(variant["note"]).strip()))
+        lines.append("")
     if run_mode:
         lines.append("> 実行モード: {}".format(run_mode))
         if run_mode == "quick" and schema.get("mode_note"):
@@ -216,8 +227,8 @@ def render(schema, data, src_name):
                              if not ln.startswith("⚠️") else "> {}".format(ln.strip()))
         lines.append("")
 
-    by_key = {l["key"]: l for l in validate_artifact.ledgers_of(schema)}
-    for sec in schema.get("sections", []):
+    by_key = {l["key"]: l for l in validate_artifact.ledgers_of(schema, variant)}
+    for sec in validate_artifact.sections_of(schema, variant):
         lines.append("## {}. {}".format(sec["num"], sec["title"]))
         lines.append("")
         intro = str(sec.get("intro", "") or "")
@@ -266,6 +277,13 @@ def process(artifact_dir, check):
     data, io_errors = validate_artifact.load_artifact(artifact_dir, schema)
     if io_errors:
         return "error", "; ".join("{}: {}".format(w, m) for w, m in io_errors)
+    # 変種を持つ成果物(根拠抽出の深さA/B/C)のうち、台帳ディレクトリ運用を
+    # しない深さは生成の対象外。.md を直接書く運用なので上書きしてはならない
+    variant = (data.get("meta") or {}).get("variant")
+    if variant is not None and not _truthy(variant.get("structured", "no")):
+        return "error", ("{}は台帳ディレクトリ運用の対象外です(.md を直接書きます)。"
+                         "notes.md の見出しが正しいか確認してください"
+                         .format(variant.get("label", variant.get("key", ""))))
 
     text = render(schema, data, os.path.basename(str(artifact_dir)))
     out = md_path_for(artifact_dir)

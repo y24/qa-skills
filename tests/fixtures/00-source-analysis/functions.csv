@@ -1,0 +1,4 @@
+﻿id,name,summary,module,entry,sources,evidence_level,derivation
+FN-01,請求書の申請,担当者が請求書を作成して承認へ回す,src/invoice/apply.py,請求書入力画面,basic-design.md#3.1;src/invoice/apply.py:42,confirmed,
+FN-02,請求書の承認,承認者が申請中の請求書を承認・差戻しする,src/invoice/approve.py,承認一覧画面,basic-design.md#3.2;src/invoice/approve.py:18,confirmed,
+FN-03,月次締めバッチ,前月分の請求書を締めて会計システムへ連携する,batch/monthly_close.py,cron 毎月1日 02:00,batch/monthly_close.py:1,likely,inferred

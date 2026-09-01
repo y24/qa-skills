@@ -371,9 +371,9 @@ jobs:
           python "$SCRIPTS/qa_session.py" add-phase "$FX/qa-output/yml" \
             --steps qa-test-viewpoint:G4
           cat > "$A/viewpoints.csv" <<'CSV'
-          id,subject,viewpoint,expected,derived_from,traces_to,priority,oracle,evidence_level,derivation,sources
-          VP-01,SC-01,必須項目未入力で申請できないこと,申請ボタンが無効。invoices.status が draft のまま,同値分割,SC-01,High,db,confirmed,,basic-design.md#3.2
-          VP-02,承認,承認者の権限が剥奪された後の取消,取消は不可。監査ログに拒否が1件記録される,リスク分析,,Medium,db,hypothesis,proposed,
+          id,subject,viewpoint,expected,category,derived_from,traces_to,priority,oracle,evidence_level,derivation,sources
+          VP-01,SC-01,必須項目未入力で申請できないこと,申請ボタンが無効。invoices.status が draft のまま,設計書,同値分割,SC-01,High,db,confirmed,,basic-design.md#3.2
+          VP-02,承認,承認者の権限が剥奪された後の取消,取消は不可。監査ログに拒否が1件記録される,リスク,リスク分析,,Medium,db,hypothesis,proposed,
           CSV
           cat > "$A/notes.md" <<'NOTES'
           # テスト観点一覧: 請求書の申請・承認
@@ -509,6 +509,59 @@ jobs:
           n=$(ls "$FX/qa-output/yml/10-intent-recovery"/*.csv | wc -l)
           [ "$n" = "3" ] || { echo "::error::意図モデルの台帳が3枚ではありません($n枚)"; exit 1; }
           echo "OK: 3台帳から9節を描き分けられています"
+
+      - name: 根拠抽出は深さAだけが台帳運用になること(変種の分岐)
+        run: |
+          set -e
+          # 00 は深さ A/B/C で節構成が変わる唯一の成果物。台帳(機能FN・用語対応表)を
+          # 持つのは A だけで、B・C は .md を直接書く(conventions.md §6-2)。
+          # 「どちらの運用か」が曖昧なまま進めると台帳と .md が二重管理になるため、
+          # 分岐が機械で効いていることを確かめる
+          cp -r tests/fixtures/00-source-analysis "$FX/qa-output/yml/"
+          python "$SCRIPTS/validate_artifact.py" "$FX/qa-output/yml/00-source-analysis" | grep -q "変種: A"             || { echo '::error::深さAとして判別されていません'; exit 1; }
+          python "$SCRIPTS/render_md.py" "$FX/qa-output/yml/00-source-analysis"
+          md="$FX/qa-output/yml/00-source-analysis.md"
+          python "$SCRIPTS/lint_output.py" "$md"
+          grep -q "^| FN-01 |" "$md"             || { echo '::error::機能台帳が主要機能マップに描画されていません'; exit 1; }
+          grep -q "^## 10\. 用語対応表" "$md"             || { echo '::error::用語対応表の節が出ていません'; exit 1; }
+          # 深さBを台帳ディレクトリ運用しようとしたら落ちること
+          B="$FX/qa-output/yml/00-source-analysis-b"
+          mkdir -p "$B"
+          cp "$FX/qa-output/yml/00-source-analysis/functions.csv" "$B/"
+          echo '# 根拠抽出(改修概要): PR#1' > "$B/notes.md"
+          if python "$SCRIPTS/validate_artifact.py" "$B" > /dev/null; then
+            echo "::error::台帳を持たない深さのディレクトリ運用を見逃しました(conventions.md §6-2)"
+            exit 1
+          fi
+          rm -rf "$B"
+          echo "OK: 深さAだけが台帳運用です"
+
+      - name: 機能(FN)の孤児参照が検出されること
+        run: |
+          set -e
+          # 観点が指す FN-NN が機能台帳に実在するか(trace_check チェック10)
+          D="$FX/qa-output/fn"
+          mkdir -p "$D"
+          cp -r tests/fixtures/00-source-analysis "$D/"
+          python "$SCRIPTS/render_md.py" "$D/00-source-analysis" > /dev/null
+          cat > "$D/30-test-viewpoint.md" <<'VP'
+          # テスト観点一覧: 請求管理システム
+
+          ## 2. テスト観点一覧
+
+          | ID | 対象(SC/FN) | 観点 | 期待結果の要点 | traces_to | 優先度 |
+          |---|---|---|---|---|---|
+          | VP-01 | FN-01 | 必須項目未入力で申請できないこと | 申請ボタンが無効 | FN-01 | High |
+          | VP-02 | FN-99 | 実在しない機能への参照 | invoices.status が draft のまま | - | Low |
+          VP
+          if python "$SCRIPTS/trace_check.py" "$D" > /dev/null; then
+            echo "::error::機能台帳にない FN-99 への参照を見逃しました"
+            exit 1
+          fi
+          python "$SCRIPTS/trace_check.py" "$D" | grep -q "FN-99"             || { echo '::error::期待したチェック(機能参照の整合)が発火していません'; exit 1; }
+          sed -i 's/FN-99/FN-02/' "$D/30-test-viewpoint.md"
+          python "$SCRIPTS/trace_check.py" "$D" > /dev/null
+          echo "OK: 機能参照の孤児を検出します"
 
       - name: 業務オラクル保有率が推定ではなく実測になること
         run: |

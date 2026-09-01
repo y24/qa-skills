@@ -32,6 +32,11 @@
 スキーマは成果物ディレクトリ名から引く(`NN-<名前>/` → `schemas/<名前>.yaml`)。
 対応するスキーマが無い成果物は検証をスキップする(段階導入のため)。
 
+スキーマが `variants`(深さ・種別で節構成が変わる成果物。根拠抽出の深さA/B/C)を
+持つ場合は、notes.md の h1 から変種を判別し、その変種の台帳・節だけを検証する。
+台帳ディレクトリ運用でない変種(`structured: no`)でディレクトリを作っていたら
+それ自体をエラーにする(どちらの運用なのかが曖昧なまま進まないようにするため)。
+
 exit code: 0=エラーなし / 1=エラーあり / 2=使用法エラー
 """
 
@@ -74,6 +79,7 @@ class Result:
         self.path = str(path)
         self.artifact = None
         self.schema = None
+        self.variant = None
         self.issues = []
 
     def add(self, severity, where, rule, message):
@@ -113,14 +119,85 @@ def schema_for(path):
     return None
 
 
-def ledgers_of(schema):
+def ledgers_of(schema, variant=None):
     """スキーマの台帳定義を list で返す。1成果物が複数の台帳を持つことがある
-    (例: 意図モデルは Actor / 遷移 / 業務ゴールの3つ)。"""
+    (例: 意図モデルは Actor / 遷移 / 業務ゴールの3つ)。
+
+    `variant` を渡すと、その変種が使う台帳(`variants[].ledgers`)だけに絞る。
+    """
     if "ledgers" in schema and isinstance(schema["ledgers"], list):
-        return schema["ledgers"]
-    if "ledger" in schema:
-        return [schema["ledger"]]
-    return []
+        ledgers = schema["ledgers"]
+    elif "ledger" in schema:
+        ledgers = [schema["ledger"]]
+    else:
+        return []
+    if variant and isinstance(variant.get("ledgers"), list):
+        keys = [str(k) for k in variant["ledgers"]]
+        return [l for l in ledgers if l["key"] in keys]
+    return ledgers
+
+
+# ---------------------------------------------------------------------------
+# 変種(variants): 深さ・種別で節構成が変わる成果物
+#
+# 根拠抽出(00)は深さ A / B / C で節が違い、台帳を持つのは A だけ。
+# 深さは h1(`# 根拠抽出(プロダクト概要): <対象>`)で決まる — 成果物側に
+# 判別用のメタ情報を別途書かせない(書式が正、が崩れるため)。
+# ---------------------------------------------------------------------------
+
+def variants_of(schema):
+    v = schema.get("variants")
+    return v if isinstance(v, list) else []
+
+
+def read_h1(path):
+    """ファイル先頭の h1 を返す(無ければ空文字)。"""
+    try:
+        with open(str(path), encoding="utf-8-sig") as f:
+            for line in f:
+                if line.startswith("# "):
+                    return line[2:].strip()
+    except (OSError, UnicodeDecodeError):
+        pass
+    return ""
+
+
+def variant_by_h1(schema, h1):
+    """h1 の文言から変種を選ぶ。判別できなければ None。"""
+    for variant in variants_of(schema):
+        for kw in variant.get("h1_keywords") or []:
+            if str(kw) in h1:
+                return variant
+    return None
+
+
+def resolve_variant(schema, artifact_dir):
+    """成果物ディレクトリ(notes.md の h1)から変種を解決する。
+
+    判別できない場合は、台帳ディレクトリ運用をする変種(`structured: yes`)の
+    先頭を返す。変種を持たないスキーマでは None。
+    """
+    variants = variants_of(schema)
+    if not variants:
+        return None
+    found = variant_by_h1(schema, read_h1(Path(artifact_dir) / NOTES_FILE))
+    if found is not None:
+        return found
+    structured = [v for v in variants if _truthy(v.get("structured", "no"))]
+    return structured[0] if structured else variants[0]
+
+
+def sections_of(schema, variant=None):
+    """描画・検証に使う節定義。変種があればそちらが正。"""
+    if variant and isinstance(variant.get("sections"), list):
+        return variant["sections"]
+    return schema.get("sections") or []
+
+
+def title_of(schema, variant=None):
+    if variant and variant.get("title"):
+        return variant["title"]
+    return schema.get("title", schema.get("artifact", ""))
 
 
 # ---------------------------------------------------------------------------
@@ -193,7 +270,7 @@ def coerce(records, ledger):
     return records
 
 
-def parse_notes(path, schema):
+def parse_notes(path, sections):
     """notes.md から対象名と叙述セクションを取り出す。
 
     見出しは成果物と同じ `## <番号>. <タイトル>` を使う。番号で対応づけるので、
@@ -204,7 +281,7 @@ def parse_notes(path, schema):
         return target, narrative
     text = Path(path).read_text(encoding="utf-8-sig")
     by_num = {}
-    for sec in schema.get("sections", []):
+    for sec in sections:
         src = str(sec.get("from", ""))
         if src.startswith("narrative."):
             by_num[str(sec["num"])] = src.split(".", 1)[1]
@@ -247,8 +324,9 @@ def load_artifact(path, schema):
     d = artifact_dir_of(path)
     errors = []
     data = {"meta": {}, "narrative": {}}
+    variant = resolve_variant(schema, d)
 
-    for ledger in ledgers_of(schema):
+    for ledger in ledgers_of(schema, variant):
         key = ledger["key"]
         csv_path = d / "{}.csv".format(key)
         if not csv_path.is_file():
@@ -258,9 +336,9 @@ def load_artifact(path, schema):
         except (OSError, ValueError, csv.Error) as e:
             errors.append(("{}.csv".format(key), "読み込めません: {}".format(e)))
 
-    target, narrative = parse_notes(d / NOTES_FILE, schema)
+    target, narrative = parse_notes(d / NOTES_FILE, sections_of(schema, variant))
     data["narrative"] = narrative
-    data["meta"] = {"target": target, "run_mode": run_mode_of(d)}
+    data["meta"] = {"target": target, "run_mode": run_mode_of(d), "variant": variant}
     return data, errors
 
 
@@ -358,6 +436,32 @@ def rule_explicit_requires_sources(result, ledger, records):
                 "なく inferred か proposed です(conventions.md §5-3)")
 
 
+def rule_unique_keys(result, ledger, records):
+    """`unique_by` で指定した列の重複禁止。
+
+    IDを持たない台帳(用語対応表など)のためのもの。同じ用語が2行あると
+    「どちらが正か」が決められず、還元先(domain-glossary.md)にも二重に流れる。
+    """
+    key = str(ledger.get("unique_by", "") or "").strip()
+    if not key:
+        return
+    label = key
+    for f in ledger["fields"]:
+        if f["name"] == key:
+            label = f.get("label", key)
+    seen = {}
+    for idx, rec in enumerate(records, start=1):
+        value = str(rec.get(key, "") or "").strip()
+        if not value:
+            continue
+        if value in seen:
+            result.add("ERROR", "{}件目".format(idx), "unique_keys",
+                       "`{}`({})が重複しています: 「{}」(初出: {}件目)"
+                       .format(key, label, value, seen[value]))
+        else:
+            seen[value] = idx
+
+
 def rule_no_vague_expected(result, ledger, records):
     targets = [f["name"] for f in ledger["fields"]
                if "期待結果" in f.get("label", "") or f["name"] == "expected"]
@@ -396,6 +500,7 @@ def check_escaped_newlines(result, key, records):
 
 RULES = {
     "unique_ids": rule_unique_ids,
+    "unique_keys": rule_unique_keys,
     "id_pattern": rule_id_pattern,
     "required_fields": rule_required_fields,
     "enum_values": rule_enum_values,
@@ -427,12 +532,22 @@ def validate(path):
     for where, message in io_errors:
         result.add("ERROR", where, "io", message)
     result.artifact = schema.get("artifact")
+    variant = (data.get("meta") or {}).get("variant")
+    if variant is not None:
+        result.variant = str(variant.get("key", ""))
+        if not _truthy(variant.get("structured", "no")):
+            result.add("ERROR", NOTES_FILE, "variant",
+                       "{}は台帳ディレクトリ運用の対象外です。`{}.md` を直接書いてください"
+                       "(conventions.md §6-2)"
+                       .format(variant.get("label", result.variant),
+                               os.path.basename(str(artifact_dir_of(path)))))
+            return result
     if not data.get("meta", {}).get("target"):
         result.add("WARN", NOTES_FILE, "structure",
                    "対象名が読み取れません。`# <タイトル>: <対象>` の見出しを "
                    "notes.md の先頭に書いてください")
 
-    ledgers = ledgers_of(schema)
+    ledgers = ledgers_of(schema, variant)
     if not ledgers:
         result.add("ERROR", None, "schema", "スキーマに台帳(ledgers)の定義がありません")
         return result
@@ -475,7 +590,7 @@ def validate(path):
             seen_ids[rid] = ledger["key"]
 
     # 叙述セクションの欠落は警告(conventions.md §6「該当なしと1行書く」)
-    for sec in schema.get("sections", []):
+    for sec in sections_of(schema, variant):
         src = sec.get("from", "")
         if not src.startswith("narrative."):
             continue
@@ -521,6 +636,8 @@ def print_text(results):
         print("=== {} ===".format(r.path))
         if r.schema:
             print("スキーマ: {}".format(os.path.basename(r.schema)))
+        if r.variant:
+            print("変種: {}".format(r.variant))
         for i in r.issues:
             where = " [{}]".format(i["where"]) if i["where"] else ""
             print("{:<6}{:<28}{}{}".format(i["severity"], i["rule"], where and where + " ", i["message"]))
@@ -560,6 +677,7 @@ def main(argv=None):
     if args.as_json:
         print(json.dumps({
             "files": [{"path": r.path, "artifact": r.artifact, "schema": r.schema,
+                       "variant": r.variant,
                        "errors": r.errors, "warnings": r.warnings,
                        "issues": r.issues} for r in results],
             "summary": {"files": len(results),

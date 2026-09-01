@@ -19,9 +19,11 @@ _shared/skill-map.md §1 が定義元。本スクリプトの対応表はそれ�
     1. ファイル名規約     conventions.md §6 の `NN-<固定名>[-<対象>].md` に
                           合致するか。番号帯と固定名の対応も確認(規約外は警告)。
     2. 必須セクション     期待する h2 見出し(## N. <タイトル>)が揃っているか。
-                          定義元は、台帳系(schemas/<種別>.yaml がある成果物)は
+                          定義元は、スキーマ(schemas/<種別>.yaml)がある成果物は
                           その yaml の sections、それ以外は各スキルの SKILL.md
-                          「出力フォーマット」節。
+                          「出力フォーマット」節。深さ・種別で節構成が変わる
+                          成果物(根拠抽出の深さA/B/C)は yaml の variants から
+                          h1 で変種を判別して照合する。
                           照合は寛容(番号+先頭キーワードの部分一致)。
                           欠落=エラー、順序・番号違い=警告。
     3. evidence_level     分析・レビュー系成果物で、evidence_level 列の空セルが
@@ -227,62 +229,6 @@ SECTION_SPECS = {
     },
 }
 
-# 出典: qa-source-analysis/SKILL.md「出力フォーマット(00-source-analysis.md)」
-# 深さA/B/C で見出し構成が異なるため h1 と見出しから自動判別する
-SOURCE_ANALYSIS_MODES = {
-    # 深さA: プロダクト概要
-    "A": {
-        "label": "根拠抽出(深さA: プロダクト概要)",
-        "h1_keywords": ("プロダクト概要",),
-        "sections": [
-            (1, "これは何のシステムか(3行要約)", ("これは何のシステム", "何のシステム"), True),
-            (2, "主要機能マップ", ("主要機能",), True),
-            (3, "代表的な業務フロー", ("業務フロー",), True),
-            (4, "データの全体像", ("データの全体像",), True),
-            (5, "外部連携・依存", ("外部連携",), True),
-            (6, "設定・権限・環境による挙動差", ("挙動差", "設定・権限"), True),
-            (7, "資料との対応と食い違い(要確認事項)", ("食い違い",), True),
-            (8, "根拠モデル", ("根拠モデル",), True),
-            (9, "QAが押さえるべき勘所", ("勘所",), True),
-            (10, "用語対応表", ("用語対応",), True),
-            (11, "未調査領域と読み方ガイド", ("未調査",), True),
-        ],
-    },
-    # 深さB: 改修概要
-    "B": {
-        "label": "根拠抽出(深さB: 改修概要)",
-        "h1_keywords": ("改修概要",),
-        "sections": [
-            (1, "何のための変更か(意図の要約)", ("何のための変更", "意図の要約"), True),
-            (2, "変更内容の要約(機能単位)", ("変更内容",), True),
-            (3, "意図と実装の対応", ("意図と実装",), True),
-            (4, "影響範囲", ("影響範囲",), True),
-            (5, "挙動が変わる操作・画面・帳票", ("挙動が変わる",), True),
-            (6, "回帰リスクが高そうな箇所とその理由", ("回帰リスク",), True),
-            (7, "資料との食い違い・要確認事項", ("食い違い",), True),
-            (8, "根拠モデル", ("根拠モデル",), True),
-            (9, "未調査領域", ("未調査",), True),
-        ],
-    },
-    # 深さC: 機能詳細
-    "C": {
-        "label": "根拠抽出(深さC: 機能詳細)",
-        "h1_keywords": ("機能詳細",),
-        "sections": [
-            (1, "処理の流れ(入口→出口の要約)", ("処理の流れ",), True),
-            (2, "入力仕様・バリデーション一覧", ("バリデーション", "入力仕様"), True),
-            (3, "権限制御", ("権限",), True),
-            (4, "状態と遷移条件", ("状態", "遷移"), True),
-            (5, "分岐・設定依存", ("分岐",), True),
-            (6, "データ・外部連携への影響", ("外部連携",), True),
-            (7, "資料との差分(要確認事項)", ("差分",), True),
-            (8, "根拠モデル", ("根拠モデル",), True),
-            (9, "未調査領域", ("未調査",), True),
-        ],
-    },
-}
-
-
 # ---------------------------------------------------------------------------
 # 解析ユーティリティ
 # ---------------------------------------------------------------------------
@@ -296,10 +242,10 @@ QC_ID_FINDER = re.compile(r"QC-[0-9A-Za-z_\-]+")
 QC_ID_VALID = re.compile(r"QC-[A-Z]+-\d+$")
 AMB_ID_FINDER = re.compile(r"AMB-[0-9A-Za-z_\-]+")
 AMB_ID_VALID = re.compile(r"AMB-\d+$")
-# conventions.md §6-1: 意図モデル〜テストケースの ID 体系
+# conventions.md §6-1: 機能(FN)〜テストケースの ID 体系
 # SC は長いシナリオのチェックポイント(SC-03.1)を許容する
-MODEL_ID_FINDER = re.compile(r"\b(?:ACT|BG|TRN|SC|VP|TC)-[0-9A-Za-z_.\-]+")
-MODEL_ID_VALID = re.compile(r"(?:ACT|BG|TRN|SC|VP|TC)-\d+(?:\.\d+)?$")
+MODEL_ID_FINDER = re.compile(r"\b(?:FN|ACT|BG|TRN|SC|VP|TC)-[0-9A-Za-z_.\-]+")
+MODEL_ID_VALID = re.compile(r"(?:FN|ACT|BG|TRN|SC|VP|TC)-\d+(?:\.\d+)?$")
 FILENAME_RE = re.compile(r"^(\d{2})-([0-9a-z][0-9a-z\-]*)\.md$")
 SESSION_FILE_RE = re.compile(r"^\d{2}-.+\.md$")
 
@@ -479,53 +425,18 @@ def check_filename(result, path):
     return None
 
 
-def detect_source_analysis_mode(result, h1s, h2s):
-    """qa-source-analysis の深さA/B/Cを h1・見出し構成から自動判別する"""
-    for lineno, title in h1s:
-        for mode, spec in SOURCE_ANALYSIS_MODES.items():
-            if any(kw in title for kw in spec["h1_keywords"]):
-                return mode
-    # h1 で判別できない場合は見出しキーワードの一致数で推定
-    best_mode, best_score = None, -1
-    titles = [norm_text(t) for (_l, _n, t) in h2s]
-    for mode, spec in SOURCE_ANALYSIS_MODES.items():
-        score = 0
-        for _num, _title, keywords, _req in spec["sections"]:
-            if any(any(norm_text(kw) in t for t in titles) for kw in keywords):
-                score += 1
-        if score > best_score:
-            best_mode, best_score = mode, score
-    result.add(
-        "WARN", h1s[0][0] if h1s else None, "section",
-        "h1 から深さを判別できないため、見出し構成から深さ%sと推定して検査します"
-        % best_mode,
-    )
-    return best_mode
-
-
 _SCHEMA_CACHE = {}
 
 
-def section_spec(artifact_type, result=None):
-    """成果物種別の期待セクション定義を返す。判定できなければ None。
-
-    台帳系(_shared/schemas/<種別>.yaml がある成果物)の .md は render_md.py が
-    yaml の sections から生成するので、**yaml が唯一の定義元**。ここに写しを
-    持たず実行時に読む。それ以外は SECTION_SPECS(SKILL.md が定義元)。
-    """
+def load_schema(artifact_type, result=None):
+    """成果物種別のスキーマを読む。無ければ None(スキーマが壊れていれば ERROR)。"""
     path = os.path.join(SCHEMA_DIR, "{}.yaml".format(artifact_type))
     if not os.path.isfile(path):
-        return SECTION_SPECS.get(artifact_type)
+        return None
     try:
         if path not in _SCHEMA_CACHE:
             _SCHEMA_CACHE[path] = miniyaml.load(path)
-        schema = _SCHEMA_CACHE[path]
-        sections = []
-        for sec in schema.get("sections") or []:
-            title = str(sec["title"]).strip()
-            required = str(sec.get("required", "yes")).strip().lower() in TRUE_VALUES
-            # 生成物なので見出しは yaml の title そのもの。照合キーワードも title
-            sections.append((int(sec["num"]), title, (title,), required))
+        return _SCHEMA_CACHE[path]
     except Exception as exc:  # スキーマが壊れていたら黙って素通りさせない
         if result is not None:
             result.add(
@@ -533,25 +444,101 @@ def section_spec(artifact_type, result=None):
                 "台帳系のセクション定義元 %s を読めません(%s)" % (path, exc),
             )
         return None
+
+
+def _sections_from_schema(sections):
+    """スキーマの sections を (番号, タイトル, 照合キーワード, 必須か) に直す。
+
+    照合キーワードは `match` があればそれ(直接書く成果物は言い回しがぶれる)、
+    無ければタイトルそのもの(生成物は見出しがタイトルと一致する)。
+    """
+    out = []
+    for sec in sections or []:
+        title = str(sec["title"]).strip()
+        required = str(sec.get("required", "yes")).strip().lower() in TRUE_VALUES
+        match = sec.get("match")
+        keywords = tuple(str(m) for m in match) if isinstance(match, list) else (title,)
+        out.append((int(sec["num"]), title, keywords, required))
+    return out
+
+
+def detect_variant(result, schema, h1s, h2s):
+    """変種(根拠抽出の深さA/B/C)を h1・見出し構成から判別する。
+
+    定義元はスキーマの `variants`。lint はここに写しを持たない。
+    """
+    variants = schema.get("variants") or []
+    for _lineno, title in h1s:
+        for variant in variants:
+            if any(str(kw) in title for kw in variant.get("h1_keywords") or []):
+                return variant
+    # h1 で判別できない場合は見出しキーワードの一致数で推定
+    best, best_score = None, -1
+    titles = [norm_text(t) for (_l, _n, t) in h2s]
+    for variant in variants:
+        score = 0
+        for _num, _title, keywords, _req in _sections_from_schema(variant.get("sections")):
+            if any(any(norm_text(kw) in t for t in titles) for kw in keywords):
+                score += 1
+        if score > best_score:
+            best, best_score = variant, score
+    if best is not None:
+        result.add(
+            "WARN", h1s[0][0] if h1s else None, "section",
+            "h1 から変種(深さ)を判別できないため、見出し構成から %s と推定して検査します"
+            % best.get("label", best.get("key", "?")),
+        )
+    return best
+
+
+def section_spec(artifact_type, result=None, variant=None):
+    """成果物種別の期待セクション定義を返す。判定できなければ None。
+
+    台帳系(_shared/schemas/<種別>.yaml がある成果物)の .md は render_md.py が
+    yaml の sections から生成するので、**yaml が唯一の定義元**。ここに写しを
+    持たず実行時に読む。それ以外は SECTION_SPECS(SKILL.md が定義元)。
+
+    深さ・種別で節構成が変わる成果物(根拠抽出)は `variant` に該当する
+    variants の要素を渡す。
+    """
+    schema = load_schema(artifact_type, result)
+    if schema is None:
+        return SECTION_SPECS.get(artifact_type)
+    source = "_shared/schemas/{}.yaml の sections".format(artifact_type)
+    if variant is not None:
+        sections = _sections_from_schema(variant.get("sections"))
+        label = str(variant.get("label") or schema.get("title") or artifact_type)
+        source += "(変種 {})".format(variant.get("key", "?"))
+    else:
+        sections = _sections_from_schema(schema.get("sections"))
+        label = str(schema.get("title") or artifact_type)
     if not sections:
         return None
-    return {
-        "label": str(schema.get("title") or artifact_type),
-        "source": "_shared/schemas/{}.yaml の sections".format(artifact_type),
-        "sections": sections,
-    }
+    return {"label": label, "source": source, "sections": sections}
+
+
+def variant_of(result):
+    """レポート表示用。判別済みの変種(result.mode)をスキーマから引く。"""
+    if not result.artifact_type or not result.mode:
+        return None
+    schema = load_schema(result.artifact_type)
+    for variant in (schema or {}).get("variants") or []:
+        if str(variant.get("key", "")) == result.mode:
+            return variant
+    return None
 
 
 def check_sections(result, artifact_type, h1s, h2s):
     """チェック2: 必須セクション(定義元は section_spec を参照)"""
-    if artifact_type == "source-analysis":
-        mode = detect_source_analysis_mode(result, h1s, h2s)
-        result.mode = mode
-        spec = SOURCE_ANALYSIS_MODES[mode]
-    else:
-        spec = section_spec(artifact_type, result)
-        if spec is None:
-            return  # 定義元が無い/読めない。理由は section_spec が記録済み
+    schema = load_schema(artifact_type, result)
+    variant = None
+    if schema and schema.get("variants"):
+        variant = detect_variant(result, schema, h1s, h2s)
+        if variant is not None:
+            result.mode = str(variant.get("key", "")) or None
+    spec = section_spec(artifact_type, result, variant)
+    if spec is None:
+        return  # 定義元が無い/読めない。理由は section_spec が記録済み
 
     assigned = set()  # 既にどれかの期待セクションに割り当てた h2 のインデックス
     matched = []      # [(期待番号, h2インデックス)]
@@ -827,11 +814,8 @@ def print_text_report(results):
     for r in results:
         print("=== %s ===" % r.path)
         if r.artifact_type:
-            label = (
-                SOURCE_ANALYSIS_MODES[r.mode]["label"]
-                if r.artifact_type == "source-analysis" and r.mode
-                else (section_spec(r.artifact_type) or {}).get("label", r.artifact_type)
-            )
+            label = (section_spec(r.artifact_type, variant=variant_of(r))
+                     or {}).get("label", r.artifact_type)
             print("種別: %s (%s)" % (r.artifact_type, label))
         for issue in r.issues:
             loc = "L%d" % issue["line"] if issue["line"] else "-"

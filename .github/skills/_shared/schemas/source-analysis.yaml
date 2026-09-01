@@ -1,0 +1,221 @@
+# 根拠抽出(00-source-analysis)のスキーマ
+#
+# 出力フォーマットの定義元は qa-source-analysis/SKILL.md、ID体系は
+# conventions.md §6-1。ここはそれを機械可読にしたものであり、
+# **定義元を変えたらここも追随させること**。
+#
+# 読み手: validate_artifact.py(検証)/ render_md.py(Markdown生成)/
+#         lint_output.py(必須セクション検査。深さの判別もここを読む)
+#
+# ## 他の台帳系と違う点: 深さの変種(variants)
+#
+# この成果物は深さ A(プロダクト概要)/ B(改修概要)/ C(機能詳細)で
+# 節構成が変わる。**台帳ディレクトリ運用にするのは深さAだけ**(機能一覧と
+# 用語対応表を持つのがAだけであり、B・Cの表はIDを持たず機械チェックも
+# 依存しない — conventions.md §6-2)。B・C は従来どおり `.md` を直接書く。
+#
+# 深さは notes.md / .md の h1(`# 根拠抽出(プロダクト概要): <対象>`)で決まる。
+# `structured: no` の深さでディレクトリ運用をしようとすると検証で落ちる。
+
+artifact: source-analysis
+number: "00"
+title: 根拠抽出
+
+# 台帳(深さAだけが使う)。どの深さがどれを使うかは variants[].ledgers
+ledgers:
+  # 主要機能マップ。FN-NN は観点(VP)・シナリオ(SC)から参照される
+  # (conventions.md §6-1)ので台帳にする
+  - key: functions
+    id_prefix: FN
+    fields:
+      - name: id
+        label: ID
+        required: yes
+        pattern: '^FN-\d+$'
+      - name: name
+        label: 機能
+        required: yes
+      - name: summary
+        label: 何ができるか
+        required: yes
+      - name: module
+        label: 担当モジュール
+        required: yes
+      - name: entry
+        label: 入口(画面・API・バッチ)
+      - name: sources
+        label: 出典
+        type: list
+      - name: evidence_level
+        label: evidence_level
+        required: yes
+        enum: [confirmed, likely, hypothesis]
+      - name: derivation
+        label: derivation
+        enum: [explicit, inferred, proposed]
+        default: explicit
+
+  # 用語対応表。用語はセッションを越えて domain-glossary.md へ還元される
+  # (conventions.md §8)ため、重複と出典を機械で見る
+  - key: glossary
+    optional: yes
+    unique_by: term
+    fields:
+      - name: term
+        label: コード内用語
+        required: yes
+      - name: business_term
+        label: 業務用語
+        required: yes
+      - name: meaning
+        label: 意味・テスト時の注意
+        required: yes
+      - name: aliases
+        label: 別名・表記ゆれ
+        type: list
+      - name: related
+        label: 関連する機能(FN)
+        type: list
+      - name: sources
+        label: 出典
+        type: list
+      - name: derivation
+        label: derivation
+        enum: [explicit, inferred, proposed]
+        default: explicit
+      - name: evidence_level
+        enum: [confirmed, likely, hypothesis]
+        render: no
+
+rules:
+  - unique_ids
+  - unique_keys
+  - id_pattern
+  - required_fields
+  - enum_values
+  - explicit_requires_sources
+
+variants:
+  # 深さA: プロダクト概要。**台帳ディレクトリ運用はここだけ**
+  - key: A
+    label: 根拠抽出(深さA - プロダクト概要)
+    title: 根拠抽出(プロダクト概要)
+    note: 深さ A(プロダクト概要)
+    h1_keywords: [プロダクト概要]
+    structured: yes
+    ledgers: [functions, glossary]
+    sections:
+      - num: 1
+        title: これは何のシステムか(3行要約)
+        from: narrative.overview
+        match: [これは何のシステム, 何のシステム]
+      - num: 2
+        title: 主要機能マップ
+        from: ledger.functions
+        match: [主要機能]
+      - num: 3
+        title: 代表的な業務フロー(入口 → 処理 → 出力)
+        from: narrative.flows
+        match: [業務フロー]
+      - num: 4
+        title: データの全体像(主要エンティティと関係)
+        from: narrative.data
+        match: [データの全体像]
+      - num: 5
+        title: 外部連携・依存
+        from: narrative.integrations
+        match: [外部連携]
+      - num: 6
+        title: 設定・権限・環境による挙動差
+        from: narrative.variations
+        match: [挙動差, 設定・権限]
+      - num: 7
+        title: 資料との対応と食い違い(要確認事項)
+        from: narrative.discrepancies
+        match: [食い違い]
+      - num: 8
+        title: 根拠モデル(Actor候補 / オブジェクト候補 / 状態候補 / 外部連携)
+        from: narrative.model
+        match: [根拠モデル]
+      - num: 9
+        title: QAが押さえるべき勘所
+        from: narrative.hotspots
+        match: [勘所]
+      - num: 10
+        title: 用語対応表(コード内用語 → 業務用語)
+        from: ledger.glossary
+        match: [用語対応]
+      - num: 11
+        title: 未調査領域と読み方ガイド
+        from: narrative.unexplored
+        match: [未調査]
+
+  # 深さB: 改修概要(.md を直接書く)
+  - key: B
+    label: 根拠抽出(深さB - 改修概要)
+    title: 根拠抽出(改修概要)
+    h1_keywords: [改修概要]
+    structured: no
+    sections:
+      - num: 1
+        title: 何のための変更か(意図の要約)
+        match: [何のための変更, 意図の要約]
+      - num: 2
+        title: 変更内容の要約(機能単位)
+        match: [変更内容]
+      - num: 3
+        title: 意図と実装の対応
+        match: [意図と実装]
+      - num: 4
+        title: 影響範囲
+        match: [影響範囲]
+      - num: 5
+        title: 挙動が変わる操作・画面・帳票
+        match: [挙動が変わる]
+      - num: 6
+        title: 回帰リスクが高そうな箇所とその理由
+        match: [回帰リスク]
+      - num: 7
+        title: 資料との食い違い・要確認事項
+        match: [食い違い]
+      - num: 8
+        title: 根拠モデル
+        match: [根拠モデル]
+      - num: 9
+        title: 未調査領域
+        match: [未調査]
+
+  # 深さC: 機能詳細(.md を直接書く)
+  - key: C
+    label: 根拠抽出(深さC - 機能詳細)
+    title: 根拠抽出(機能詳細)
+    h1_keywords: [機能詳細]
+    structured: no
+    sections:
+      - num: 1
+        title: 処理の流れ(入口→出口の要約)
+        match: [処理の流れ]
+      - num: 2
+        title: 入力仕様・バリデーション一覧
+        match: [バリデーション, 入力仕様]
+      - num: 3
+        title: 権限制御
+        match: [権限]
+      - num: 4
+        title: 状態と遷移条件
+        match: [状態, 遷移]
+      - num: 5
+        title: 分岐・設定依存
+        match: [分岐]
+      - num: 6
+        title: データ・外部連携への影響
+        match: [外部連携]
+      - num: 7
+        title: 資料との差分(要確認事項)
+        match: [差分]
+      - num: 8
+        title: 根拠モデル
+        match: [根拠モデル]
+      - num: 9
+        title: 未調査領域
+        match: [未調査]

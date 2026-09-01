@@ -1,0 +1,3 @@
+﻿term,business_term,meaning,aliases,related,sources,derivation,evidence_level
+invoice.status,請求書ステータス,申請から支払までの進行状態。draft/applied/approved の3値,ステータス;状態,FN-01;FN-02,src/invoice/models.py:12,,confirmed
+close_date,締め日,その月の請求を確定する日。締め後の修正は差戻しでしか行えない,月次締め日,FN-03,batch/monthly_close.py:23,,likely

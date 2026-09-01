@@ -52,6 +52,21 @@ qa-improvement は振り返りレポート(`90-improvement.md`)に改善提案�
 
 <!-- 以下に検討結果を追記していく -->
 
+## 2026-09-01 運用フィードバック(メンテナー直接。根拠抽出の機能一覧・用語集を台帳に)
+
+**背景**: 深さAの成果物にある「主要機能マップ」と「用語対応表」が Markdown の表のままで、他の台帳系(観点・ケース・意図モデル・シナリオ)と運用が揃っていなかった。表計算で開けず、機能を後続から参照する手段もない。
+
+| 項目 | 対象ファイル | 判断 | 理由・備考 |
+|---|---|---|---|
+| 機能一覧を `functions.csv`(`FN-NN`)、用語対応表を `glossary.csv` として台帳化し、深さAを台帳ディレクトリ運用にする | schemas/source-analysis.yaml(新規) / qa-source-analysis/SKILL.md / conventions.md §6-2 | 採用 | 表だから台帳にする、はしない(§6-2)。**FN を観点・シナリオから参照できるIDにして基準①を満たす**のが条件 |
+| ID体系に `FN-NN`(機能。qa-source-analysis が採番)を追加し、`trace_check.py` にチェック10(機能参照の整合)を足す | conventions.md §6-1 / trace_check.py / lint_output.py / schemas/test-viewpoint.yaml(対象列を `対象(SC/FN)`)/ qa-test-viewpoint/SKILL.md | 採用 | 台帳にする根拠そのもの。観点の「対象」を機能名の文字列で書くと、機能が改名・統合されたときに追えない |
+| 用語集は**セッションの台帳まで**とし、`references/domain-glossary.md`(育てる資産)は Markdown のまま据え置く | domain-glossary.md | 見送り | 還元の判断は人が行う(§8)。還元先までCSVにすると qa-spec-review の「用語集への追記候補」節の運用まで変わり、変更が今回の目的を越える |
+| 深さB・Cは従来どおり `.md` を直接書く。深さで運用が変わることをスキーマの `variants` で表し、`validate_artifact.py` / `render_md.py` / `lint_output.py` を変種対応にする | schemas/source-analysis.yaml / 上記3スクリプト / conventions.md §6-2 / skill-map.md §5 | 採用 | B・Cには台帳にすべき表がない。**lint が持っていた深さA/B/Cの節定義(`SOURCE_ANALYSIS_MODES`)はスキーマへ移し、定義元を1箇所にした** |
+| 台帳を持たない深さでディレクトリ運用をしたらエラーにする | validate_artifact.py / render_md.py | 採用 | 「どちらの運用か」が曖昧なまま進むと台帳と `.md` の二重管理になる。深さは h1 で判別する(成果物側に判別用のメタ情報を書かせない) |
+| IDを持たない台帳の重複検出(`unique_keys` ルール。用語対応表の `term`) | validate_artifact.py / schemas/source-analysis.yaml | 採用 | 同じ用語が2行あると還元先にも二重に流れる。列を直接見る検査なので誤検出せず hook でブロックしてよい(hooks.md §5) |
+| CI自己検査に「深さAだけが台帳運用になること」「機能(FN)の孤児参照が検出されること」を追加 | qa-artifacts.yml | 採用 | 変種の分岐と新チェックは、壊れても静かに素通りする種類の欠陥 |
+| CI内フィクスチャの観点台帳に必須列 `category` が無く、自己検査が落ちていたのを修正 | qa-artifacts.yml | 採用 | 2026-08-31 のカテゴリ追加(schemas/test-viewpoint.yaml)にフィクスチャが追随していなかった。スキーマの必須列を増やすときはCI内フィクスチャも追随させること |
+
 ## 2026-08-31 運用フィードバック(メンテナー直接。台帳CSVの可読性)
 
 **背景**: AIツールが書いた `31-test-case/cases.csv` の `steps` が項番ごとに改行されず、改行の位置が `&#10;` のまま残っていた。表計算で開くと1行に潰れて読めない — 台帳をCSVにしている理由(表計算でそのまま読み書きできる)が崩れる。

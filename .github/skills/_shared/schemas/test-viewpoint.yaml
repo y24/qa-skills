@@ -23,8 +23,10 @@ ledgers:
         label: ID
         required: yes
         pattern: "^VP-\\d+$"
+      # 対象はシナリオ(SC)か機能(FN。根拠抽出の深さAの機能台帳)を指す。
+      # ID で書くと trace_check が実在を突合する(conventions.md §6-1)
       - name: subject
-        label: 対象(SC/機能)
+        label: 対象(SC/FN)
         required: yes
       - name: viewpoint
         label: 観点

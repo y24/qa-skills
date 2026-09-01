@@ -15,7 +15,7 @@ QAスキル群のワークフローのうち、**入出力が決まっていて�
 | [qa_session.py](qa_session.py) | qa-session.json の作成・更新・再開判定。インプット・ステップは一括投入(`--item` / `--steps`) | qa-orchestrator(計画作成時・完了時・ゲート通過時) |
 | [defect_stats.py](defect_stats.py) | `inspect`: 不具合CSVの列の下見 / `normalize`: ラベル列付き台帳CSVへ変換(**持ち越す列はAIが選ぶ**) / `stats`: 4軸分布・任意列の分布・クロス集計 / `table`: 台帳CSV→Markdown表 | qa-defect-analysis 手順1・3 |
 | [pairwise.py](pairwise.py) | ペアワイズ(全ペア網羅)組み合わせ生成。決定論的・生成後に自己検証。禁止ペア制約対応 | qa-test-case-design 手順2 |
-| [trace_check.py](trace_check.py) | 成果物間のID突合: 意図モデル⇄シナリオ⇄観点⇄ケースの孤児参照、導出元欠落、未確認QC基準、AMB参照切れ、ID重複 | qa-intent-recovery / qa-scenario-design / qa-test-viewpoint / qa-test-case-design / qa-test-design-review |
+| [trace_check.py](trace_check.py) | 成果物間のID突合: 機能台帳⇄意図モデル⇄シナリオ⇄観点⇄ケースの孤児参照、導出元欠落、未確認QC基準、AMB参照切れ、ID重複 | qa-source-analysis / qa-intent-recovery / qa-scenario-design / qa-test-viewpoint / qa-test-case-design / qa-test-design-review |
 | [lint_output.py](lint_output.py) | 成果物の必須セクション・evidence_level・derivation の付与漏れ・ID書式・曖昧語のチェック | 全スキル(要約提示前)/ qa-improvement 手順2 |
 | [metrics.py](metrics.py) | conventions.md §11 の指標算出: 根拠参照率・根拠なし事実主張率・トレース率・モデル/シナリオ種別カバレッジ・業務オラクル保有率 | qa-improvement 手順2 / qa-scenario-design 手順7 / qa-test-design-review 手順0 |
 | [gate_check.py](gate_check.py) | **検証の単一入口。** lint・ID突合・スキーマ検証・レンダリング一致を承認ゲート単位で束ねる。判定基準を1箇所に閉じるためのもの | SKILL.md の手順 / hooks / CI(すべてここを呼ぶ) |
@@ -79,7 +79,9 @@ qa-output/<セッション名>/
   30-test-viewpoint.md ← 生成物。人間が読むのはこれ
 ```
 
-**台帳にするのは、他の成果物がIDを参照するか、機械チェックが列に依存するものだけ**(conventions.md §6-2)。それ以外の表は `notes.md` の中に書く。この基準で、セッション全体の台帳は6枚に収まる — 意図モデル3(Actor / 遷移 / 業務ゴール)、シナリオ1、観点1、ケース1。仕様レビュー・設計レビューは構造化せず Markdown を直接書く(AMB参照の実在確認は `trace_check.py` が正規表現で行っている)。
+**台帳にするのは、他の成果物がIDを参照するか、機械チェックが列に依存するものだけ**(conventions.md §6-2)。それ以外の表は `notes.md` の中に書く。この基準で、セッション全体の台帳は8枚に収まる — 根拠抽出2(機能 / 用語対応。深さAのみ)、意図モデル3(Actor / 遷移 / 業務ゴール)、シナリオ1、観点1、ケース1。仕様レビュー・設計レビューは構造化せず Markdown を直接書く(AMB参照の実在確認は `trace_check.py` が正規表現で行っている)。
+
+根拠抽出だけは**深さで運用が変わる**。深さA(プロダクト概要)は台帳ディレクトリ運用、深さB・Cは `.md` の直接記述。スキーマの `variants` がその定義元で、深さは h1 で判別する(`structured: no` の深さでディレクトリを作ると検証で落ちる)。
 
 なぜこの形か。
 

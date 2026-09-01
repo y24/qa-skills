@@ -104,7 +104,7 @@ gates.md §4-1 の優先表で拾うものに加えて、各ゲートで**必ず
 
 1. 本ファイルの §1 依存関係表・§2 モードの連鎖・§3 ゲートの割り当て・§3-1 レビュー依頼で指す箇所を更新
 2. 新しい成果物が `conventions.md §6` の番号帯に収まるか確認する(帯そのものは変えない。成果物名を持つのは本ファイル §1)
-3. `scripts/lint_output.py` の `FIXED_NAMES` を追随(コメントの出典は本ファイル)。`SECTION_SPECS` は **Markdown を直接書く成果物だけ**追随する — 台帳系は lint が `schemas/<名前>.yaml` の `sections` を実行時に読む
+3. `scripts/lint_output.py` の `FIXED_NAMES` を追随(コメントの出典は本ファイル)。`SECTION_SPECS` は **スキーマを持たない成果物だけ**追随する — スキーマがある成果物は lint が `schemas/<名前>.yaml` の `sections`(深さ・種別で節が変わるものは `variants`)を実行時に読む
 4. `scripts/gate_check.py` の `GATE_ARTIFACTS`(§3 のゲートが束ねる成果物)を追随
 5. 台帳系の成果物なら `_shared/schemas/<名前>.yaml` を作る(conventions.md §6-2)。叙述中心の成果物ならスキーマは不要で、従来どおり `.md` を直接書く
 6. `.github/agents/` と `hooks.md` は**追随不要**(汎用ランナー方式・ゲート単位の検証のため、スキルが増減しても変更されない)
